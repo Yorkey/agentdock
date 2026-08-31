@@ -1,0 +1,28 @@
+{
+  "name": "chats",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "只读归集 Cursor / Claude Code / Codex 本地对话的桌面应用",
+  "packageManager": "pnpm@10.12.1",
+  "engines": {
+    "node": ">=24.15.0",
+    "pnpm": ">=10.12.1"
+  },
+  "scripts": {
+    "dev": "pnpm --filter @chats/desktop dev",
+    "build": "pnpm --filter @chats/desktop build",
+    "dist": "pnpm --filter @chats/desktop dist",
+    "dist:mac": "pnpm --filter @chats/desktop dist:mac",
+    "dist:win": "pnpm --filter @chats/desktop dist:win",
+    "typecheck": "pnpm -r --if-present typecheck"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "electron",
+      "esbuild",
+      "electron-builder",
+      "app-builder-bin"
+    ]
+  }
+}

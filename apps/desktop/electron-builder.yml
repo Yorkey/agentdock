@@ -1,0 +1,61 @@
+appId: app.chats.desktop
+productName: 对话归集
+copyright: Copyright © 2026
+# 不要用 ${name}：@chats/desktop 会把产物打进 @chats/ 子目录
+artifactName: chats-${version}-${os}-${arch}.${ext}
+
+directories:
+  output: release
+
+# 主进程 / preload / renderer / worker 都由 electron-vite 打进 out/。
+# cordis 与 workspace 包已 bundle，不要再拷贝 pnpm node_modules。
+files:
+  - package.json
+  - out/**/*
+  - '!node_modules/**'
+  - '!src/**'
+  - '!scripts/**'
+  - '!electron.vite.config.ts'
+  - '!tsconfig*.json'
+
+asar: true
+# hashed scan worker + out/main/package.json（type:module）必须在磁盘上，
+# 否则 utilityProcess.fork 无法从 asar 里加载 ESM worker。
+asarUnpack:
+  - out/main/index-*.js
+  - out/main/package.json
+
+npmRebuild: false
+nodeGypRebuild: false
+
+electronLanguages:
+  - en
+  - zh_CN
+
+mac:
+  category: public.app-category.productivity
+  identity: null
+  target:
+    - dmg
+    - zip
+
+dmg:
+  artifactName: chats-${version}-mac-${arch}.${ext}
+
+win:
+  executableName: Chats
+  signAndEditExecutable: false
+  target:
+    - target: nsis
+      arch:
+        - x64
+    - target: zip
+      arch:
+        - x64
+
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  shortcutName: ${productName}
+  uninstallDisplayName: ${productName}
+  artifactName: chats-${version}-win-${arch}-setup.${ext}

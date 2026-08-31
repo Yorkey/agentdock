@@ -1,0 +1,26 @@
+{
+  "name": "@chats/source-codex",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "import": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "parse:sample": "node --experimental-strip-types ./scripts/parse-sample.ts"
+  },
+  "dependencies": {
+    "@chats/core": "workspace:*",
+    "@chats/plugin-registry": "workspace:*",
+    "cordis": "4.0.0-rc.9"
+  },
+  "devDependencies": {
+    "@types/node": "^24.3.0",
+    "typescript": "^5.9.2"
+  }
+}
