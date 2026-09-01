@@ -1,8 +1,7 @@
-appId: app.chats.desktop
-productName: 对话归集
-copyright: Copyright © 2026
-# 不要用 ${name}：@chats/desktop 会把产物打进 @chats/ 子目录
-artifactName: chats-${version}-${os}-${arch}.${ext}
+appId: app.agentdock.desktop
+productName: AgentDock
+copyright: Copyright © 2026 AgentDock
+artifactName: AgentDock-${version}-${os}-${arch}.${ext}
 
 directories:
   output: release
@@ -34,16 +33,18 @@ electronLanguages:
 
 mac:
   category: public.app-category.productivity
+  icon: build/icon.icns
   identity: null
   target:
     - dmg
     - zip
 
 dmg:
-  artifactName: chats-${version}-mac-${arch}.${ext}
+  artifactName: AgentDock-${version}-mac-${arch}.${ext}
 
 win:
-  executableName: Chats
+  executableName: AgentDock
+  icon: build/icon.png
   signAndEditExecutable: false
   target:
     - target: nsis
@@ -58,4 +59,4 @@ nsis:
   allowToChangeInstallationDirectory: true
   shortcutName: ${productName}
   uninstallDisplayName: ${productName}
-  artifactName: chats-${version}-win-${arch}-setup.${ext}
+  artifactName: AgentDock-${version}-win-${arch}-setup.${ext}

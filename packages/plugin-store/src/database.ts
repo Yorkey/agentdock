@@ -9,7 +9,7 @@ import {
   type Resource,
   type Role,
   type SourceFileRef
-} from '@chats/core'
+} from '@agentdock/core'
 import { PRAGMA_SQL, SCHEMA_SQL } from './schema.ts'
 
 export interface ListConversationsOptions {
@@ -39,6 +39,29 @@ function asStringOpt(value: SQLOutputValue | undefined): string | undefined {
 function asNumber(value: SQLOutputValue | undefined): number {
   if (value == null) return 0
   return Number(value)
+}
+
+function mapFingerprint(row: Record<string, SQLOutputValue>): FileFingerprint {
+  return {
+    sourceId: asString(row.source_id),
+    path: asString(row.path),
+    mtimeMs: asNumber(row.mtime_ms),
+    size: asNumber(row.size)
+  }
+}
+
+function isPrefixAppend(
+  stored: Array<{ id: string; seq: number }>,
+  incoming: Message[]
+): boolean {
+  if (stored.length > incoming.length) return false
+  for (let i = 0; i < stored.length; i++) {
+    const row = stored[i]
+    const message = incoming[i]
+    if (!row || !message) return false
+    if (row.id !== message.id || row.seq !== message.seq) return false
+  }
+  return true
 }
 
 function mapConversation(row: Record<string, SQLOutputValue>): Conversation {
@@ -104,11 +127,12 @@ export class SqliteStore {
   stmtInsertResource: StatementSync
   stmtGetFingerprint: StatementSync
   stmtSetFingerprint: StatementSync
+  stmtListFingerprints: StatementSync
+  stmtListMessageIds: StatementSync
   stmtListAll: StatementSync
   stmtListBySource: StatementSync
   stmtGetMessages: StatementSync
   stmtSearch: StatementSync
-  stmtSearchLike: StatementSync
   stmtFindIds: StatementSync
   stmtDeleteFts: StatementSync
   stmtDeleteConversation: StatementSync
@@ -157,6 +181,13 @@ export class SqliteStore {
         conversation_id = excluded.conversation_id,
         scanned_at = excluded.scanned_at
     `)
+    this.stmtListFingerprints = this.db.prepare(`
+      SELECT source_id, path, mtime_ms, size
+      FROM scan_state
+    `)
+    this.stmtListMessageIds = this.db.prepare(`
+      SELECT id, seq FROM message WHERE conversation_id = ? ORDER BY seq ASC
+    `)
     this.stmtListAll = this.db.prepare(`
       SELECT * FROM conversation ORDER BY updated_at DESC, id ASC
     `)
@@ -171,13 +202,6 @@ export class SqliteStore {
       FROM message_fts
       JOIN conversation ON conversation.id = message_fts.conversation_id
       WHERE message_fts MATCH ?
-      ORDER BY conversation.updated_at DESC, conversation.id ASC
-    `)
-    this.stmtSearchLike = this.db.prepare(`
-      SELECT DISTINCT conversation.*
-      FROM message
-      JOIN conversation ON conversation.id = message.conversation_id
-      WHERE message.parts LIKE ? ESCAPE '\\'
       ORDER BY conversation.updated_at DESC, conversation.id ASC
     `)
     this.stmtFindIds = this.db.prepare(`
@@ -283,8 +307,34 @@ export class SqliteStore {
     }
     this.withTransaction(() => {
       const existing = this.stmtFindIds.all(written.id, written.sourceId, written.sourcePath)
-      for (const row of existing) {
-        this.deleteConversation(asString(row.id))
+      const existingIds = existing.map((row) => asString(row.id))
+      if (existingIds.length === 1 && existingIds[0] === written.id) {
+        const stored = this.stmtListMessageIds.all(written.id).map((row) => ({
+          id: asString(row.id),
+          seq: asNumber(row.seq)
+        }))
+        if (isPrefixAppend(stored, messages)) {
+          this.upsertConversation(written)
+          if (messages.length > stored.length) {
+            this.insertMessagesUnlocked(messages.slice(stored.length))
+          }
+          this.upsertResourcesUnlocked(resources)
+          if (file) {
+            this.setFingerprintUnlocked(
+              {
+                sourceId: written.sourceId,
+                path: file.path,
+                mtimeMs: file.mtimeMs,
+                size: file.size
+              },
+              written.id
+            )
+          }
+          return
+        }
+      }
+      for (const id of existingIds) {
+        this.deleteConversation(id)
       }
       this.upsertConversation(written)
       this.insertMessagesUnlocked(messages)
@@ -306,12 +356,11 @@ export class SqliteStore {
   getFingerprint(sourceId: string, path: string): FileFingerprint | undefined {
     const row = this.stmtGetFingerprint.get(sourceId, path)
     if (!row) return undefined
-    return {
-      sourceId: asString(row.source_id),
-      path: asString(row.path),
-      mtimeMs: asNumber(row.mtime_ms),
-      size: asNumber(row.size)
-    }
+    return mapFingerprint(row)
+  }
+
+  listFingerprints(): FileFingerprint[] {
+    return this.stmtListFingerprints.all().map(mapFingerprint)
   }
 
   setFingerprint(fingerprint: FileFingerprint, conversationId: string): void {
@@ -330,15 +379,13 @@ export class SqliteStore {
   }
 
   search(query: string): Conversation[] {
-    const trimmed = query.trim()
-    if (!trimmed) return []
-    const graphemes = Array.from(trimmed)
-    if (graphemes.length < 3) {
-      const escaped = trimmed.replaceAll('\\', '\\\\').replaceAll('%', '\\%').replaceAll('_', '\\_')
-      return this.stmtSearchLike.all(`%${escaped}%`).map(mapConversation)
+    const match = toFtsQuery(query)
+    if (!match) return []
+    try {
+      return this.stmtSearch.all(match).map(mapConversation)
+    } catch {
+      return []
     }
-    const match = toFtsQuery(trimmed)
-    return this.stmtSearch.all(match).map(mapConversation)
   }
 
   listConversations(options: ListConversationsOptions = {}): Conversation[] {

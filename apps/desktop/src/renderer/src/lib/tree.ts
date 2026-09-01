@@ -1,6 +1,6 @@
-import type { Conversation } from '@chats/core'
-import type { SourceInfo } from '@chats/plugin-registry/types'
-import { workspaceKey, workspaceLabel } from './format'
+import type { Conversation } from '@agentdock/core'
+import type { SourceInfo } from '@agentdock/plugin-registry/types'
+import { workspaceKey, workspaceLabel } from './format.ts'
 
 export type TreeSelection =
   | { kind: 'all' }
@@ -19,6 +19,56 @@ export interface SourceNode {
   label: string
   count: number
   workspaces: WorkspaceNode[]
+}
+
+export type SidebarRow =
+  | { kind: 'source'; key: string; source: SourceNode }
+  | { kind: 'workspace'; key: string; workspace: WorkspaceNode }
+  | { kind: 'session'; key: string; conversation: Conversation; nested: boolean }
+
+export function sourceRowKey(sourceId: string): string {
+  return `s:${sourceId}`
+}
+
+export function workspaceRowKey(sourceId: string, workspace: string): string {
+  return `w:${sourceId}:${workspace}`
+}
+
+export function sessionRowKey(conversationId: string): string {
+  return `c:${conversationId}`
+}
+
+/** 按折叠状态把工作区树拍成虚拟列表行。折叠的 source / workspace 不展开子行。 */
+export function flattenSidebarRows(tree: SourceNode[], collapsed: ReadonlySet<string>): SidebarRow[] {
+  const rows: SidebarRow[] = []
+  for (const source of tree) {
+    const sourceKey = sourceRowKey(source.id)
+    rows.push({ kind: 'source', key: sourceKey, source })
+    if (collapsed.has(sourceKey)) continue
+    for (const workspace of source.workspaces) {
+      const wsKey = workspaceRowKey(source.id, workspace.workspace)
+      rows.push({ kind: 'workspace', key: wsKey, workspace })
+      if (collapsed.has(wsKey)) continue
+      for (const conversation of workspace.conversations) {
+        rows.push({
+          kind: 'session',
+          key: sessionRowKey(conversation.id),
+          conversation,
+          nested: true
+        })
+      }
+    }
+  }
+  return rows
+}
+
+export function flattenSearchRows(hits: Conversation[]): SidebarRow[] {
+  return hits.map((conversation) => ({
+    kind: 'session',
+    key: sessionRowKey(conversation.id),
+    conversation,
+    nested: false
+  }))
 }
 
 export function buildSourceTree(

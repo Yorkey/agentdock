@@ -1,4 +1,4 @@
-import type { Part, Role } from '@chats/core'
+import type { Part, Role } from '@agentdock/core'
 import { asString, isEnvironmentContext, isRecord, parseJsonValue, stringifyOutput } from './util.ts'
 
 export const COMPACT_MARKER = '上下文压缩'

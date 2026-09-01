@@ -1,6 +1,6 @@
 import { Service, type Context } from 'cordis'
-import type { ConversationSource, Message, SourceFileRef } from '@chats/core'
-import type {} from '@chats/plugin-store'
+import type { ConversationSource, FileFingerprint, Message, SourceFileRef } from '@agentdock/core'
+import type {} from '@agentdock/plugin-store'
 import type { ScanDone, ScanEngine, ScanJob, ScanProgress } from './types.ts'
 
 export type {
@@ -61,7 +61,7 @@ export class SourceRegistry extends Service {
     try {
       const result = this.engine
         ? await this.engine.scan(this.createJob())
-        : await this.scanInProcess()
+        : await this.scanInProcess(this.createJob())
       this.ctx.emit('scan/done', result)
       return result
     } catch (error) {
@@ -79,9 +79,13 @@ export class SourceRegistry extends Service {
   }
 
   createJob(): ScanJob {
+    const fingerprints = new Map<string, FileFingerprint>()
+    for (const fingerprint of this.ctx.store.listFingerprints()) {
+      fingerprints.set(`${fingerprint.sourceId}\0${fingerprint.path}`, fingerprint)
+    }
     return {
       sourceIds: this.list().map((source) => source.id),
-      getFingerprint: (sourceId, path) => this.ctx.store.getFingerprint(sourceId, path),
+      getFingerprint: (sourceId, path) => fingerprints.get(`${sourceId}\0${path}`),
       replaceConversation: (conversation, messages, ref) => {
         this.ctx.store.replaceConversation(conversation, messages, ref)
       },
@@ -91,7 +95,7 @@ export class SourceRegistry extends Service {
     }
   }
 
-  async scanInProcess(): Promise<ScanDone> {
+  async scanInProcess(job: ScanJob): Promise<ScanDone> {
     const result: ScanDone = { processed: 0, skipped: 0, written: 0 }
     const discovered: Array<{ source: ConversationSource; ref: SourceFileRef }> = []
     for (const source of this.list()) {
@@ -103,7 +107,7 @@ export class SourceRegistry extends Service {
     try {
       for (const { source, ref } of discovered) {
         result.processed += 1
-        const fingerprint = this.ctx.store.getFingerprint(source.id, ref.path)
+        const fingerprint = job.getFingerprint(source.id, ref.path)
         if (
           fingerprint &&
           fingerprint.mtimeMs === ref.mtimeMs &&

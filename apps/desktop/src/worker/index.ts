@@ -1,4 +1,5 @@
 import { parentPort as threadParentPort } from 'node:worker_threads'
+import { SqliteStore } from '@agentdock/plugin-store'
 import {
   isParentMessage,
   type ParentToWorker,
@@ -51,19 +52,8 @@ function attachHost(): HostPort {
 
 const host = attachHost()
 
-let ackWaiter: (() => void) | undefined
 let parseWaiter: ((message: Extract<ParentToWorker, { type: 'parse' }>) => void) | undefined
 let aborted = false
-
-function waitAck(): Promise<void> {
-  return new Promise((resolve, reject) => {
-    if (aborted) {
-      reject(new Error('aborted'))
-      return
-    }
-    ackWaiter = resolve
-  })
-}
 
 function waitParse(): Promise<Extract<ParentToWorker, { type: 'parse' }>> {
   return new Promise((resolve, reject) => {
@@ -75,64 +65,56 @@ function waitParse(): Promise<Extract<ParentToWorker, { type: 'parse' }>> {
   })
 }
 
-async function runStart(sourceIds: string[]): Promise<void> {
+async function runStart(sourceIds: string[], storePath: string): Promise<void> {
   const files = await discoverFiles(sourceIds)
   const parsePromise = waitParse()
   host.post({ type: 'discovered', files })
   const parse = await parsePromise
-  let done = parse.completed
-  for (const file of parse.files) {
-    if (aborted) break
-    const source = getBuiltinSource(file.sourceId)
-    const ack = waitAck()
-    try {
-      const { conversation } = await parseOne(source, file.ref, async (messages) => {
+  if (parse.files.length === 0) {
+    host.post({ type: 'done' })
+    return
+  }
+
+  const store = new SqliteStore(storePath)
+  try {
+    let done = parse.completed
+    for (const file of parse.files) {
+      if (aborted) break
+      const source = getBuiltinSource(file.sourceId)
+      try {
+        const { conversation, messages } = await parseOne(source, file.ref)
+        store.replaceConversation(conversation, messages, file.ref)
+        host.post({ type: 'file', sourceId: file.sourceId, path: file.ref.path })
+      } catch (error) {
         host.post({
-          type: 'batch',
+          type: 'file-error',
           sourceId: file.sourceId,
           path: file.ref.path,
-          messages
+          error: error instanceof Error ? error.message : String(error)
         })
-      })
+      }
+      done += 1
       host.post({
-        type: 'file',
-        sourceId: file.sourceId,
-        ref: file.ref,
-        conversation
-      })
-    } catch (error) {
-      host.post({
-        type: 'file-error',
+        type: 'progress',
         sourceId: file.sourceId,
         path: file.ref.path,
-        error: error instanceof Error ? error.message : String(error)
+        done,
+        total: parse.total
       })
     }
-    done += 1
-    host.post({
-      type: 'progress',
-      sourceId: file.sourceId,
-      path: file.ref.path,
-      done,
-      total: parse.total
-    })
-    await ack
+    host.post({ type: 'done' })
+  } finally {
+    store.close()
   }
-  host.post({ type: 'done' })
 }
 
 host.onMessage((raw) => {
   if (!isParentMessage(raw)) return
   if (raw.type === 'abort') {
     aborted = true
-    ackWaiter?.()
-    ackWaiter = undefined
-    return
-  }
-  if (raw.type === 'ack') {
-    const resolve = ackWaiter
-    ackWaiter = undefined
-    resolve?.()
+    const resolve = parseWaiter
+    parseWaiter = undefined
+    resolve?.({ type: 'parse', files: [], total: 0, completed: 0 })
     return
   }
   if (raw.type === 'parse') {
@@ -142,7 +124,7 @@ host.onMessage((raw) => {
     return
   }
   if (raw.type === 'start') {
-    void runStart(raw.sourceIds).catch((error: unknown) => {
+    void runStart(raw.sourceIds, raw.storePath).catch((error: unknown) => {
       host.post({
         type: 'error',
         error: error instanceof Error ? error.message : String(error)

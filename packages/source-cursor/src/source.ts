@@ -11,7 +11,7 @@ import {
   type ConversationSource,
   type Message,
   type SourceFileRef
-} from '@chats/core'
+} from '@agentdock/core'
 import {
   extractTimestampMs,
   extractUserQuery,

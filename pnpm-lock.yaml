@@ -10,34 +10,34 @@ importers:
 
   apps/desktop:
     dependencies:
-      '@chats/core':
+      '@agentdock/core':
         specifier: workspace:*
         version: link:../../packages/core
-      '@chats/module-chats':
+      '@agentdock/module-chats':
         specifier: workspace:*
         version: link:../../packages/module-chats
-      '@chats/module-skills':
+      '@agentdock/module-skills':
         specifier: workspace:*
         version: link:../../packages/module-skills
-      '@chats/plugin-bridge':
+      '@agentdock/plugin-bridge':
         specifier: workspace:*
         version: link:../../packages/plugin-bridge
-      '@chats/plugin-registry':
+      '@agentdock/plugin-registry':
         specifier: workspace:*
         version: link:../../packages/plugin-registry
-      '@chats/plugin-store':
+      '@agentdock/plugin-store':
         specifier: workspace:*
         version: link:../../packages/plugin-store
-      '@chats/plugin-workbench':
+      '@agentdock/plugin-workbench':
         specifier: workspace:*
         version: link:../../packages/plugin-workbench
-      '@chats/source-claude-code':
+      '@agentdock/source-claude-code':
         specifier: workspace:*
         version: link:../../packages/source-claude-code
-      '@chats/source-codex':
+      '@agentdock/source-codex':
         specifier: workspace:*
         version: link:../../packages/source-codex
-      '@chats/source-cursor':
+      '@agentdock/source-cursor':
         specifier: workspace:*
         version: link:../../packages/source-cursor
       '@tanstack/react-virtual':
@@ -89,7 +89,7 @@ importers:
 
   packages/module-chats:
     dependencies:
-      '@chats/plugin-workbench':
+      '@agentdock/plugin-workbench':
         specifier: workspace:*
         version: link:../plugin-workbench
       cordis:
@@ -105,7 +105,7 @@ importers:
 
   packages/module-skills:
     dependencies:
-      '@chats/plugin-workbench':
+      '@agentdock/plugin-workbench':
         specifier: workspace:*
         version: link:../plugin-workbench
       cordis:
@@ -121,16 +121,16 @@ importers:
 
   packages/plugin-bridge:
     dependencies:
-      '@chats/core':
+      '@agentdock/core':
         specifier: workspace:*
         version: link:../core
-      '@chats/plugin-registry':
+      '@agentdock/plugin-registry':
         specifier: workspace:*
         version: link:../plugin-registry
-      '@chats/plugin-store':
+      '@agentdock/plugin-store':
         specifier: workspace:*
         version: link:../plugin-store
-      '@chats/plugin-workbench':
+      '@agentdock/plugin-workbench':
         specifier: workspace:*
         version: link:../plugin-workbench
       cordis:
@@ -149,10 +149,10 @@ importers:
 
   packages/plugin-registry:
     dependencies:
-      '@chats/core':
+      '@agentdock/core':
         specifier: workspace:*
         version: link:../core
-      '@chats/plugin-store':
+      '@agentdock/plugin-store':
         specifier: workspace:*
         version: link:../plugin-store
       cordis:
@@ -168,7 +168,7 @@ importers:
 
   packages/plugin-store:
     dependencies:
-      '@chats/core':
+      '@agentdock/core':
         specifier: workspace:*
         version: link:../core
       cordis:
@@ -184,7 +184,7 @@ importers:
 
   packages/plugin-workbench:
     dependencies:
-      '@chats/core':
+      '@agentdock/core':
         specifier: workspace:*
         version: link:../core
       cordis:
@@ -200,10 +200,10 @@ importers:
 
   packages/source-claude-code:
     dependencies:
-      '@chats/core':
+      '@agentdock/core':
         specifier: workspace:*
         version: link:../core
-      '@chats/plugin-registry':
+      '@agentdock/plugin-registry':
         specifier: workspace:*
         version: link:../plugin-registry
       cordis:
@@ -219,10 +219,10 @@ importers:
 
   packages/source-codex:
     dependencies:
-      '@chats/core':
+      '@agentdock/core':
         specifier: workspace:*
         version: link:../core
-      '@chats/plugin-registry':
+      '@agentdock/plugin-registry':
         specifier: workspace:*
         version: link:../plugin-registry
       cordis:
@@ -238,10 +238,10 @@ importers:
 
   packages/source-cursor:
     dependencies:
-      '@chats/core':
+      '@agentdock/core':
         specifier: workspace:*
         version: link:../core
-      '@chats/plugin-registry':
+      '@agentdock/plugin-registry':
         specifier: workspace:*
         version: link:../plugin-registry
       cordis:

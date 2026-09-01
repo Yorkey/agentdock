@@ -2,16 +2,16 @@ import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Context } from 'cordis'
-import { StoreService } from '@chats/plugin-store'
-import { SourceRegistry } from '@chats/plugin-registry'
-import cursorSourcePlugin from '@chats/source-cursor'
-import claudeCodeSourcePlugin from '@chats/source-claude-code'
-import codexSourcePlugin from '@chats/source-codex'
+import { StoreService } from '@agentdock/plugin-store'
+import { SourceRegistry } from '@agentdock/plugin-registry'
+import cursorSourcePlugin from '@agentdock/source-cursor'
+import claudeCodeSourcePlugin from '@agentdock/source-claude-code'
+import codexSourcePlugin from '@agentdock/source-codex'
 import { createInlineScanEngine } from '../src/worker/inline-engine.ts'
 
 async function main(): Promise<void> {
-  const dir = await mkdtemp(join(tmpdir(), 'chats-dry-scan-'))
-  const dbPath = join(dir, 'chats.sqlite')
+  const dir = await mkdtemp(join(tmpdir(), 'agentdock-dry-scan-'))
+  const dbPath = join(dir, 'agentdock.sqlite')
   const ctx = new Context()
   try {
     await ctx.plugin(StoreService, { path: dbPath })

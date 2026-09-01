@@ -1,6 +1,6 @@
 {
-  "name": "@chats/module-chats",
-  "version": "0.0.0",
+  "name": "@agentdock/module-chats",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "exports": {
@@ -14,7 +14,7 @@
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
-    "@chats/plugin-workbench": "workspace:*",
+    "@agentdock/plugin-workbench": "workspace:*",
     "cordis": "4.0.0-rc.9"
   },
   "devDependencies": {

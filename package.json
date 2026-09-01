@@ -1,21 +1,23 @@
 {
-  "name": "chats",
-  "version": "0.0.0",
+  "name": "agentdock",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "只读归集 Cursor / Claude Code / Codex 本地对话的桌面应用",
+  "description": "AgentDock — 只读归集 Cursor / Claude Code / Codex 本地对话的桌面应用",
+  "author": "AgentDock",
   "packageManager": "pnpm@10.12.1",
   "engines": {
     "node": ">=24.15.0",
     "pnpm": ">=10.12.1"
   },
   "scripts": {
-    "dev": "pnpm --filter @chats/desktop dev",
-    "build": "pnpm --filter @chats/desktop build",
-    "dist": "pnpm --filter @chats/desktop dist",
-    "dist:mac": "pnpm --filter @chats/desktop dist:mac",
-    "dist:win": "pnpm --filter @chats/desktop dist:win",
-    "typecheck": "pnpm -r --if-present typecheck"
+    "dev": "pnpm --filter @agentdock/desktop dev",
+    "build": "pnpm --filter @agentdock/desktop build",
+    "dist": "pnpm --filter @agentdock/desktop dist",
+    "dist:mac": "pnpm --filter @agentdock/desktop dist:mac",
+    "dist:win": "pnpm --filter @agentdock/desktop dist:win",
+    "typecheck": "pnpm -r --if-present typecheck",
+    "verify": "pnpm --filter @agentdock/desktop verify"
   },
   "pnpm": {
     "onlyBuiltDependencies": [

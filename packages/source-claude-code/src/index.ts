@@ -1,5 +1,5 @@
 import type { Context } from 'cordis'
-import type {} from '@chats/plugin-registry'
+import type {} from '@agentdock/plugin-registry'
 import { claudeCodeSource } from './source.ts'
 
 export { SOURCE_ID, SOURCE_LABEL, claudeCodeSource, claudeProjectsRoot } from './source.ts'

@@ -58,4 +58,5 @@ CREATE INDEX IF NOT EXISTS idx_message_conversation_seq ON message(conversation_
 export const PRAGMA_SQL = `
 PRAGMA foreign_keys = ON;
 PRAGMA journal_mode = WAL;
+PRAGMA busy_timeout = 5000;
 `

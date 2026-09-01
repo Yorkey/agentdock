@@ -1,4 +1,4 @@
-import type { Part, Role } from '@chats/core'
+import type { Part, Role } from '@agentdock/core'
 
 const TIMESTAMP_RE = /<timestamp>\s*([\s\S]*?)\s*<\/timestamp>/i
 const USER_QUERY_RE = /<user_query>\s*([\s\S]*?)\s*<\/user_query>/i

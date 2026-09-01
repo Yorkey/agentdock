@@ -1,4 +1,4 @@
-import type { ScanDone, ScanEngine, ScanProgress } from '@chats/plugin-registry/types'
+import type { ScanDone, ScanEngine, ScanProgress } from '@agentdock/plugin-registry/types'
 import { isUnchanged } from './protocol.ts'
 import { discoverFiles, getBuiltinSource, parseOne } from './run-scan.ts'
 

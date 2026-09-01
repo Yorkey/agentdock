@@ -1,8 +1,8 @@
-import type { Message, Part } from '@chats/core'
+import type { Message, Part } from '@agentdock/core'
 
 export const COMPACT_MARKER = '上下文压缩'
 
-export type ViewMode = 'chat' | 'trajectory'
+export type ViewMode = 'chat' | 'trajectory' | 'plan' | 'changes'
 
 export interface DialogueTool {
   name: string
@@ -16,6 +16,7 @@ export interface DialogueTool {
 
 export type DialogueBlock =
   | { kind: 'text'; text: string }
+  | { kind: 'injected'; text: string; label: string }
   | { kind: 'reasoning'; text: string }
   | { kind: 'tool'; tool: DialogueTool }
 
@@ -35,6 +36,12 @@ export function textsOf(turn: DialogueTurn): string[] {
 
 export function toolsOf(turn: DialogueTurn): DialogueTool[] {
   return turn.blocks.filter((block): block is { kind: 'tool'; tool: DialogueTool } => block.kind === 'tool').map((block) => block.tool)
+}
+
+export function injectionsOf(turn: DialogueTurn): { text: string; label: string }[] {
+  return turn.blocks
+    .filter((block): block is { kind: 'injected'; text: string; label: string } => block.kind === 'injected')
+    .map((block) => ({ text: block.text, label: block.label }))
 }
 
 export interface ToolProbe {
@@ -95,6 +102,7 @@ export function groupAssistantWork(blocks: DialogueBlock[]): AssistantWork {
       }
       continue
     }
+    if (block.kind !== 'tool') continue
     pendingTools.push(block.tool)
   }
 
@@ -191,12 +199,26 @@ export function firstTextLine(text: string): string {
   return firstLine(text)
 }
 
-const MODE_KEY = 'chats.viewMode'
+const MODE_KEY = 'agentdock.viewMode'
+const LEGACY_MODE_KEY = 'chats.viewMode'
+
+function migrateLegacyKey(nextKey: string, legacyKey: string): void {
+  try {
+    const legacy = localStorage.getItem(legacyKey)
+    if (legacy && !localStorage.getItem(nextKey)) {
+      localStorage.setItem(nextKey, legacy)
+      localStorage.removeItem(legacyKey)
+    }
+  } catch {
+    // ignore
+  }
+}
 
 export function loadViewMode(): ViewMode {
+  migrateLegacyKey(MODE_KEY, LEGACY_MODE_KEY)
   try {
     const value = localStorage.getItem(MODE_KEY)
-    if (value === 'trajectory' || value === 'chat') return value
+    if (value === 'trajectory' || value === 'chat' || value === 'plan' || value === 'changes') return value
     if (value === 'raw') return 'trajectory'
     if (value === 'dialogue') return 'chat'
   } catch {
@@ -285,7 +307,7 @@ export function projectDialogue(messages: Message[]): DialogueItem[] {
 }
 
 function turnIsVisible(turn: DialogueTurn): boolean {
-  return turn.blocks.some((block) => block.kind === 'text' || block.kind === 'tool')
+  return turn.blocks.some((block) => block.kind === 'text' || block.kind === 'tool' || block.kind === 'injected')
 }
 
 function lastAssistant(items: DialogueItem[]): DialogueTurn | null {
@@ -318,53 +340,69 @@ function userBlocks(message: Message): DialogueBlock[] {
   const blocks: DialogueBlock[] = []
   for (const part of message.parts) {
     if (part.kind !== 'text') continue
-    const text = displayUserText(part.text)
-    if (text) blocks.push({ kind: 'text', text })
+    const classified = classifyUserText(part.text)
+    if (!classified.text) continue
+    if (classified.kind === 'injected') {
+      blocks.push({ kind: 'injected', text: classified.text, label: classified.label })
+    } else {
+      blocks.push({ kind: 'text', text: classified.text })
+    }
   }
   return blocks
 }
 
 function attachToolParts(turn: { blocks: DialogueBlock[] }, parts: Part[]): void {
+  const byCallId = new Map<string, DialogueTool>()
+  for (const block of turn.blocks) {
+    if (block.kind === 'tool' && block.tool.callId) byCallId.set(block.tool.callId, block.tool)
+  }
+  let lastTool = lastToolBlock(turn.blocks)
+
+  const pushTool = (tool: DialogueTool): void => {
+    turn.blocks.push({ kind: 'tool', tool })
+    if (tool.callId) byCallId.set(tool.callId, tool)
+    lastTool = tool
+  }
+
   for (const part of parts) {
     if (part.kind === 'tool_result') {
-      const match = part.callId
-        ? [...turn.blocks].reverse().find((block) => block.kind === 'tool' && block.tool.callId === part.callId)
-        : undefined
-      if (match?.kind === 'tool') {
-        match.tool.output = joinOutput(match.tool.output, part.output)
-        if (part.isError) match.tool.isError = true
+      const match = part.callId ? byCallId.get(part.callId) : undefined
+      if (match) {
+        match.output = joinOutput(match.output, part.output)
+        if (part.isError) match.isError = true
       } else {
-        turn.blocks.push({
-          kind: 'tool',
-          tool: {
-            name: '结果',
-            summary: truncate(firstLine(part.output) || '工具结果', 80),
-            callId: part.callId,
-            input: undefined,
-            output: part.output,
-            isError: part.isError,
-            diffs: []
-          }
+        pushTool({
+          name: '结果',
+          summary: truncate(firstLine(part.output) || '工具结果', 80),
+          callId: part.callId,
+          input: undefined,
+          output: part.output,
+          isError: part.isError,
+          diffs: []
         })
       }
     } else if (part.kind === 'diff') {
-      const last = [...turn.blocks].reverse().find((block) => block.kind === 'tool')
-      if (last?.kind === 'tool') last.tool.diffs.push({ path: part.path, patch: part.patch })
+      if (lastTool) lastTool.diffs.push({ path: part.path, patch: part.patch })
       else {
-        turn.blocks.push({
-          kind: 'tool',
-          tool: {
-            name: '差异',
-            summary: part.path || 'patch',
-            input: undefined,
-            diffs: [{ path: part.path, patch: part.patch }]
-          }
+        pushTool({
+          name: '差异',
+          summary: part.path || 'patch',
+          input: undefined,
+          diffs: [{ path: part.path, patch: part.patch }]
         })
       }
     } else if (part.kind === 'tool_call') {
-      turn.blocks.push({ kind: 'tool', tool: toolFromCall(part) })
+      pushTool(toolFromCall(part))
     }
   }
+}
+
+function lastToolBlock(blocks: DialogueBlock[]): DialogueTool | undefined {
+  for (let i = blocks.length - 1; i >= 0; i--) {
+    const block = blocks[i]
+    if (block?.kind === 'tool') return block.tool
+  }
+  return undefined
 }
 
 function toolFromCall(part: Extract<Part, { kind: 'tool_call' }>): DialogueTool {
@@ -414,6 +452,74 @@ export function summarizeTool(name: string, input: unknown): string {
   if (key.includes('web') && url) return truncate(url, 88)
 
   return truncate(description || command || shortPath(path) || pattern || name, 88)
+}
+
+export interface InjectedTextRule {
+  /** 稳定标识，便于回归时定位是哪条规则命中 */
+  id: string
+  /** 折叠行上展示的中文说明 */
+  label: string
+  pattern: RegExp
+}
+
+/** 整条文本就是一对 XML 风格标签时才算注入，避免吃掉夹带标签的真实输入 */
+function wrappedIn(tag: string): RegExp {
+  return new RegExp(`^<${tag}(?:\\s[^>]*)?>[\\s\\S]*</${tag}>$`, 'i')
+}
+
+/**
+ * harness 注入文本的识别规则，集中在这里便于后续增补。
+ *
+ * 判定必须保守：宁可把注入当成用户输入展示，也不能把真实用户输入折叠掉。
+ * 因此每条 pattern 都从文本开头锚定，匹配的是各家 harness 的固定话术或完整标签包裹，
+ * 不做「包含某关键词」这种宽松匹配。
+ */
+export const INJECTED_TEXT_RULES: readonly InjectedTextRule[] = [
+  { id: 'follow-up', label: '后续动作提示', pattern: /^perform any necessary follow-up actions?\b/i },
+  {
+    id: 'caveat',
+    label: '本地命令说明',
+    pattern: /^caveat: the messages below were generated by the user while running local commands/i
+  },
+  { id: 'local-command', label: '本地命令输出', pattern: /^<local-command-(?:stdout|stderr)>/i },
+  { id: 'command-output', label: '命令输出', pattern: wrappedIn('command-output') },
+  { id: 'system-reminder', label: '系统提醒', pattern: wrappedIn('system-reminder') },
+  { id: 'environment-details', label: '环境信息', pattern: wrappedIn('environment_details') },
+  { id: 'user-instructions', label: '仓库指令', pattern: wrappedIn('user_instructions') },
+  { id: 'attached-files', label: '附加文件', pattern: wrappedIn('attached_files') },
+  { id: 'interrupted', label: '中断标记', pattern: /^\[request interrupted by user(?: for tool use)?\]$/i },
+  {
+    id: 'compact-continue',
+    label: '压缩后续写',
+    pattern: /^this session is being continued from a previous conversation/i
+  },
+  {
+    id: 'compact-request',
+    label: '压缩摘要指令',
+    pattern: /^your task is to create a detailed summary of the conversation so far/i
+  }
+] as const
+
+export interface ClassifiedUserText {
+  kind: 'user' | 'injected'
+  /** 归一化后的展示文本，空串表示这段没有可展示内容 */
+  text: string
+  /** 注入类文本的中文说明，用户输入为空串 */
+  label: string
+  ruleId?: string
+}
+
+/**
+ * 判断一段用户消息文本是真实输入还是 harness 注入。
+ * 注入类只渲染成一行可展开的「系统注入」，不占用户气泡。
+ */
+export function classifyUserText(raw: string): ClassifiedUserText {
+  const text = displayUserText(raw)
+  if (!text) return { kind: 'user', text: '', label: '' }
+  for (const rule of INJECTED_TEXT_RULES) {
+    if (rule.pattern.test(text)) return { kind: 'injected', text, label: rule.label, ruleId: rule.id }
+  }
+  return { kind: 'user', text, label: '' }
 }
 
 function displayUserText(raw: string): string {

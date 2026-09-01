@@ -11,4 +11,10 @@ export type {
 
 export type { WorkbenchContribution, WorkbenchIcon } from './workbench.ts'
 
-export { hashId, makeConversationId, partsToSearchText, truncateTitle } from './helpers.ts'
+export {
+  hashId,
+  makeConversationId,
+  partsToSearchText,
+  SEARCH_TEXT_LIMIT,
+  truncateTitle
+} from './helpers.ts'

@@ -3,7 +3,7 @@ import type {
   FileFingerprint,
   Message,
   SourceFileRef
-} from '@chats/core'
+} from '@agentdock/core'
 
 export interface SourceInfo {
   id: string

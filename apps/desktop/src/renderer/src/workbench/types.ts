@@ -1,4 +1,4 @@
-import type { WorkbenchContribution } from '@chats/core'
+import type { WorkbenchContribution } from '@agentdock/core'
 
 export interface ModuleProps {
   hidden: boolean

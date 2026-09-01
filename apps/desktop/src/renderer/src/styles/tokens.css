@@ -1,0 +1,272 @@
+/*
+ * 语义 token 层。组件样式只允许引用这里的变量，禁止出现字面色值。
+ *
+ * 三段结构：
+ *   :root                                亮色（默认）
+ *   :root[data-theme='dark']             显式暗色
+ *   @media (prefers-color-scheme: dark)  未显式设置 data-theme 时跟随系统
+ *
+ * 后两段的变量值必须保持一致，改动时两处一起改。
+ */
+
+:root {
+  color-scheme: light;
+
+  /* 字体 */
+  --font-sans:
+    'SF Pro Text', 'PingFang SC', 'Noto Sans SC', system-ui, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --font-size: 15px;
+
+  /* 圆角：控件 6 / 卡片 8 / 气泡 16 */
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 16px;
+  --radius-pill: 999px;
+
+  /* 动效：仅淡入与折叠两档，reduced-motion 下由 base.css 统一关掉 */
+  --motion-fast: 120ms;
+  --motion-collapse: 150ms;
+  --ease: cubic-bezier(0.2, 0, 0.2, 1);
+
+  /* 表面 */
+  --surface-1: #ffffff;
+  --surface-2: #f6f7f9;
+  --surface-3: #eceff3;
+  --surface-subtle: #f3f4f6;
+  --surface-code: #f4f5f7;
+  --surface-input: #ffffff;
+  --surface-hover: rgba(15, 23, 42, 0.04);
+  --surface-overlay: rgba(15, 23, 42, 0.28);
+  --surface-bubble: var(--surface-subtle);
+
+  /* 文字 */
+  --text-1: #111827;
+  --text-2: #4b5563;
+  /* 要在最深的 --surface-3 上也过 4.5:1，所以比常见的次级灰更深 */
+  --text-3: #646b74;
+
+  /*
+   * 描边分两类：
+   *   --border / --border-strong  纯装饰性分隔线与卡片边框，不承担 3:1
+   *   --border-input(-hover)      输入框、行动按钮这类有真实边界语义的控件，对框内与框外表面都 ≥3:1
+   */
+  --border: #e6e8ec;
+  --border-strong: #cfd3da;
+  --border-input: #818995;
+  --border-input-hover: #6f757f;
+  --quote-border: #d1d5db;
+  --scrollbar-thumb: #d1d5db;
+
+  /* 强调与焦点 */
+  --accent: #2563eb;
+  /* :focus 时的边框，也要 ≥3:1，不能比 --border-input 还浅 */
+  --accent-border: #3b82f6;
+  /* 焦点环要对表面过 3:1，透明度低于 0.8 就看不清了 */
+  --focus-ring: rgba(37, 99, 235, 0.8);
+
+  /* 危险态 */
+  --danger: #d42222;
+  --danger-border: #fecaca;
+  --danger-surface: #fef2f2;
+
+  /* diff */
+  --diff-add-bg: #dcfce7;
+  --diff-add-fg: #15803d;
+  --diff-del-bg: #fee2e2;
+  --diff-del-fg: #b91c1c;
+  --diff-hunk-bg: #eff6ff;
+  --diff-hunk-fg: var(--accent);
+
+  /*
+   * 角色（时间线色带）。亮色轨道是浅色，所以色带必须用 600 级才够 3:1；
+   * tool 用品红而不是紫，否则和 assistant 的紫在图例里糊成一块。
+   */
+  --role-system: #64748b;
+  --role-user: #2f6fe0;
+  --role-context: #0d8f6a;
+  --role-assistant: #7c4ddb;
+  --role-tool: #b120c4;
+
+  /* 角色徽标 */
+  --badge-system-bg: #e5e7eb;
+  --badge-system-fg: #4b5563;
+  --badge-user-bg: #dbeafe;
+  --badge-user-fg: #1d4ed8;
+  --badge-context-bg: #d1fae5;
+  --badge-context-fg: #047857;
+  --badge-assistant-bg: #ede9fe;
+  --badge-assistant-fg: #6d28d9;
+  --badge-tool-bg: #fae8ff;
+  --badge-tool-fg: #a21caf;
+
+  /* 时间线 */
+  --timeline-track: var(--surface-subtle);
+  --timeline-focus-ring: #111827;
+
+  /* 会话来源 */
+  --source-default: #9ca3af;
+  --source-cursor: #6366f1;
+  --source-claude-code: #d97706;
+  --source-codex: #16a34a;
+
+  /* 工具名 */
+  --tool-name-fg: #b45309;
+
+  /* 骨架屏 */
+  --skeleton-base: #e8ebf0;
+  --skeleton-sheen: rgba(255, 255, 255, 0.7);
+
+  /* 投影 */
+  --shadow-1: 0 1px 2px rgba(15, 23, 42, 0.06);
+  --shadow-2: 0 8px 24px rgba(15, 23, 42, 0.12);
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
+  --surface-1: #1b1c1f;
+  --surface-2: #161719;
+  --surface-3: #2b2d32;
+  --surface-subtle: #232529;
+  --surface-code: #202226;
+  --surface-input: #202226;
+  --surface-hover: rgba(255, 255, 255, 0.06);
+  --surface-overlay: rgba(24, 25, 28, 0.72);
+
+  --text-1: #e5e7ea;
+  --text-2: #b3b8c0;
+  --text-3: #9298a2;
+
+  --border: #2e3035;
+  --border-strong: #3f4249;
+  --border-input: #6b7079;
+  --border-input-hover: #868c96;
+  --quote-border: #3f4249;
+  --scrollbar-thumb: #3f4249;
+
+  --accent: #6ea8fe;
+  --accent-border: #4d82cf;
+  --focus-ring: rgba(110, 168, 254, 0.7);
+
+  --danger: #f87171;
+  --danger-border: rgba(248, 113, 113, 0.38);
+  --danger-surface: rgba(248, 113, 113, 0.12);
+
+  /* diff 不做反色，改用低饱和叠色 + 提亮的前景 */
+  --diff-add-bg: rgba(63, 185, 80, 0.16);
+  --diff-add-fg: #7ee2a8;
+  --diff-del-bg: rgba(248, 81, 73, 0.16);
+  --diff-del-fg: #f5a5a3;
+  --diff-hunk-bg: rgba(110, 168, 254, 0.13);
+  --diff-hunk-fg: #8ab4f8;
+
+  --role-system: #6f757f;
+  --role-user: #4f7fc4;
+  --role-context: #3f9c7c;
+  --role-assistant: #8f6bd6;
+  --role-tool: #bd6bc9;
+
+  --badge-system-bg: rgba(148, 163, 184, 0.16);
+  --badge-system-fg: #b6bcc6;
+  --badge-user-bg: rgba(96, 165, 250, 0.16);
+  --badge-user-fg: #93bdf5;
+  --badge-context-bg: rgba(52, 211, 153, 0.15);
+  --badge-context-fg: #71cfae;
+  --badge-assistant-bg: rgba(167, 139, 250, 0.16);
+  --badge-assistant-fg: #b39ff0;
+  --badge-tool-bg: rgba(217, 110, 242, 0.15);
+  --badge-tool-fg: #d09ae2;
+
+  --timeline-track: #26282d;
+  --timeline-focus-ring: #e5e7ea;
+
+  --source-default: #6f757f;
+  --source-cursor: #8286e8;
+  --source-claude-code: #d08b3c;
+  --source-codex: #4aa96a;
+
+  --tool-name-fg: #d8a25a;
+
+  --skeleton-base: #282a2f;
+  --skeleton-sheen: rgba(255, 255, 255, 0.07);
+
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-2: 0 8px 24px rgba(0, 0, 0, 0.5);
+}
+
+/* 跟随系统：与上面 [data-theme='dark'] 的取值保持一致 */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    color-scheme: dark;
+
+    --surface-1: #1b1c1f;
+    --surface-2: #161719;
+    --surface-3: #2b2d32;
+    --surface-subtle: #232529;
+    --surface-code: #202226;
+    --surface-input: #202226;
+    --surface-hover: rgba(255, 255, 255, 0.06);
+    --surface-overlay: rgba(24, 25, 28, 0.72);
+
+    --text-1: #e5e7ea;
+    --text-2: #b3b8c0;
+    --text-3: #9298a2;
+
+    --border: #2e3035;
+    --border-strong: #3f4249;
+    --border-input: #6b7079;
+    --border-input-hover: #868c96;
+    --quote-border: #3f4249;
+    --scrollbar-thumb: #3f4249;
+
+    --accent: #6ea8fe;
+    --accent-border: #4d82cf;
+    --focus-ring: rgba(110, 168, 254, 0.7);
+
+    --danger: #f87171;
+    --danger-border: rgba(248, 113, 113, 0.38);
+    --danger-surface: rgba(248, 113, 113, 0.12);
+
+    --diff-add-bg: rgba(63, 185, 80, 0.16);
+    --diff-add-fg: #7ee2a8;
+    --diff-del-bg: rgba(248, 81, 73, 0.16);
+    --diff-del-fg: #f5a5a3;
+    --diff-hunk-bg: rgba(110, 168, 254, 0.13);
+    --diff-hunk-fg: #8ab4f8;
+
+    --role-system: #6f757f;
+    --role-user: #4f7fc4;
+    --role-context: #3f9c7c;
+    --role-assistant: #8f6bd6;
+    --role-tool: #bd6bc9;
+
+    --badge-system-bg: rgba(148, 163, 184, 0.16);
+    --badge-system-fg: #b6bcc6;
+    --badge-user-bg: rgba(96, 165, 250, 0.16);
+    --badge-user-fg: #93bdf5;
+    --badge-context-bg: rgba(52, 211, 153, 0.15);
+    --badge-context-fg: #71cfae;
+    --badge-assistant-bg: rgba(167, 139, 250, 0.16);
+    --badge-assistant-fg: #b39ff0;
+    --badge-tool-bg: rgba(217, 110, 242, 0.15);
+    --badge-tool-fg: #d09ae2;
+
+    --timeline-track: #26282d;
+    --timeline-focus-ring: #e5e7ea;
+
+    --source-default: #6f757f;
+    --source-cursor: #8286e8;
+    --source-claude-code: #d08b3c;
+    --source-codex: #4aa96a;
+
+    --tool-name-fg: #d8a25a;
+
+    --skeleton-base: #282a2f;
+    --skeleton-sheen: rgba(255, 255, 255, 0.07);
+
+    --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.4);
+    --shadow-2: 0 8px 24px rgba(0, 0, 0, 0.5);
+  }
+}

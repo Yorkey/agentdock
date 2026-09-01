@@ -1,19 +1,27 @@
+import { existsSync, renameSync } from 'node:fs'
 import { join } from 'node:path'
-import { app, BrowserWindow, shell } from 'electron'
+import { app, BrowserWindow, nativeTheme, shell } from 'electron'
 import { Context } from 'cordis'
-import { StoreService } from '@chats/plugin-store'
-import { SourceRegistry } from '@chats/plugin-registry'
-import { WorkbenchRegistry } from '@chats/plugin-workbench'
-import { BridgeService } from '@chats/plugin-bridge'
-import chatsModulePlugin from '@chats/module-chats'
-import skillsModulePlugin from '@chats/module-skills'
-import cursorSourcePlugin from '@chats/source-cursor'
-import claudeCodeSourcePlugin from '@chats/source-claude-code'
-import codexSourcePlugin from '@chats/source-codex'
+import { StoreService } from '@agentdock/plugin-store'
+import { SourceRegistry } from '@agentdock/plugin-registry'
+import { WorkbenchRegistry } from '@agentdock/plugin-workbench'
+import { BridgeService } from '@agentdock/plugin-bridge'
+import chatsModulePlugin from '@agentdock/module-chats'
+import skillsModulePlugin from '@agentdock/module-skills'
+import cursorSourcePlugin from '@agentdock/source-cursor'
+import claudeCodeSourcePlugin from '@agentdock/source-claude-code'
+import codexSourcePlugin from '@agentdock/source-codex'
 import scanWorkerPath from '../worker/index.ts?modulePath'
 import { createUtilityScanEngine } from './scan-engine.ts'
 
 let appCtx: Context | undefined
+
+/** 与 tokens.css 的 `--surface-1` 对齐，避免启动白闪。 */
+const WINDOW_BG = { light: '#ffffff', dark: '#1b1c1f' } as const
+
+function windowBackground(): string {
+  return nativeTheme.shouldUseDarkColors ? WINDOW_BG.dark : WINDOW_BG.light
+}
 
 function createWindow(): void {
   const win = new BrowserWindow({
@@ -21,9 +29,10 @@ function createWindow(): void {
     height: 800,
     minWidth: 800,
     minHeight: 560,
-    title: '对话归集',
-    backgroundColor: '#ffffff',
+    title: 'AgentDock',
+    backgroundColor: windowBackground(),
     show: false,
+    ...(process.platform === 'darwin' ? { titleBarStyle: 'hiddenInset' as const } : {}),
     webPreferences: {
       preload: join(import.meta.dirname, '../preload/index.cjs'),
       contextIsolation: true,
@@ -34,6 +43,14 @@ function createWindow(): void {
 
   win.on('ready-to-show', () => {
     win.show()
+  })
+
+  const syncBackground = () => {
+    if (!win.isDestroyed()) win.setBackgroundColor(windowBackground())
+  }
+  nativeTheme.on('updated', syncBackground)
+  win.on('closed', () => {
+    nativeTheme.off('updated', syncBackground)
   })
 
   win.webContents.setWindowOpenHandler((details) => {
@@ -48,10 +65,25 @@ function createWindow(): void {
   }
 }
 
+function resolveStorePath(): string {
+  const userData = app.getPath('userData')
+  const storePath = join(userData, 'agentdock.sqlite')
+  const legacyPath = join(userData, 'chats.sqlite')
+  if (!existsSync(storePath) && existsSync(legacyPath)) {
+    try {
+      renameSync(legacyPath, storePath)
+    } catch {
+      // 迁移失败则使用新库
+    }
+  }
+  return storePath
+}
+
 async function startPlugins(): Promise<Context> {
   const ctx = new Context()
+  const storePath = resolveStorePath()
   await ctx.plugin(StoreService, {
-    path: join(app.getPath('userData'), 'chats.sqlite')
+    path: storePath
   })
   await ctx.plugin(SourceRegistry)
   await ctx.plugin(WorkbenchRegistry)
@@ -60,13 +92,24 @@ async function startPlugins(): Promise<Context> {
   await ctx.plugin(codexSourcePlugin)
   await ctx.plugin(chatsModulePlugin)
   await ctx.plugin(skillsModulePlugin)
-  const scanEngine = createUtilityScanEngine(scanWorkerPath)
+  const scanEngine = createUtilityScanEngine(scanWorkerPath, storePath)
   ctx.sources.useEngine(scanEngine)
   await ctx.plugin(BridgeService)
   ctx.effect(() => () => {
     scanEngine.dispose()
   })
   return ctx
+}
+
+app.setName('AgentDock')
+
+if (process.platform === 'darwin') {
+  app.setAboutPanelOptions({
+    applicationName: 'AgentDock',
+    applicationVersion: app.getVersion(),
+    version: app.getVersion(),
+    copyright: 'Copyright © 2026 AgentDock'
+  })
 }
 
 app.whenReady().then(async () => {

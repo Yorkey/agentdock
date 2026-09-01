@@ -1,10 +1,15 @@
-import { BrowserWindow, ipcMain, type IpcMainInvokeEvent } from 'electron'
+import { homedir } from 'node:os'
+import { readFile, realpath } from 'node:fs/promises'
+import { BrowserWindow, ipcMain, nativeTheme, type IpcMainInvokeEvent } from 'electron'
 import { Service, type Context } from 'cordis'
-import type {} from '@chats/plugin-store'
-import type { ScanDone, ScanProgress, SourceInfo } from '@chats/plugin-registry/types'
-import type {} from '@chats/plugin-registry'
-import type {} from '@chats/plugin-workbench'
-import { IPC, type ListConversationsArgs } from './ipc.ts'
+import type {} from '@agentdock/plugin-store'
+import type { ScanDone, ScanProgress, SourceInfo } from '@agentdock/plugin-registry/types'
+import type {} from '@agentdock/plugin-registry'
+import type {} from '@agentdock/plugin-workbench'
+import { IPC, type ListConversationsArgs, type ThemeSource } from './ipc.ts'
+import { readWhitelistedPlanFile } from './plan-file.ts'
+import { readPreviewFile } from './preview-file.ts'
+import { revealInFolder } from './reveal.ts'
 
 export { IPC }
 export type {
@@ -12,9 +17,10 @@ export type {
   IpcChannel,
   ListConversationsArgs,
   ScanDone,
-  ScanProgress
+  ScanProgress,
+  ThemeSource
 } from './ipc.ts'
-export type { WorkbenchContribution } from '@chats/core'
+export type { WorkbenchContribution } from '@agentdock/core'
 
 function broadcast(channel: string, payload: unknown): void {
   for (const win of BrowserWindow.getAllWindows()) {
@@ -68,6 +74,46 @@ export class BridgeService extends Service {
       })
       handle(IPC.startScan, () => this.ctx.sources.scan())
       handle(IPC.listActivities, () => this.ctx.workbench.list())
+      handle(IPC.setThemeSource, (_event, source) => {
+        if (!isThemeSource(source)) {
+          throw new Error('source must be system | light | dark')
+        }
+        nativeTheme.themeSource = source
+      })
+      handle(IPC.readPlanFile, async (_event, conversationId, filePath) => {
+        if (typeof conversationId !== 'string') {
+          throw new Error('conversationId must be a string')
+        }
+        if (typeof filePath !== 'string') {
+          throw new Error('path must be a string')
+        }
+        const messages = this.ctx.store.getMessages(conversationId)
+        return readWhitelistedPlanFile(filePath, messages, {
+          home: homedir(),
+          readFile: (target) => readFile(target, 'utf8'),
+          realpath
+        })
+      })
+
+      handle(IPC.revealInFolder, async (_event, filePath, workspace) => {
+        if (typeof filePath !== 'string') {
+          throw new Error('path must be a string')
+        }
+        if (workspace !== undefined && typeof workspace !== 'string') {
+          throw new Error('workspace must be a string')
+        }
+        return revealInFolder(filePath, workspace)
+      })
+
+      handle(IPC.readPreviewFile, async (_event, filePath, workspace) => {
+        if (typeof filePath !== 'string') {
+          throw new Error('path must be a string')
+        }
+        if (workspace !== undefined && typeof workspace !== 'string') {
+          throw new Error('workspace must be a string')
+        }
+        return readPreviewFile(filePath, workspace)
+      })
 
       return () => {
         ipcMain.removeHandler(IPC.listConversations)
@@ -76,6 +122,10 @@ export class BridgeService extends Service {
         ipcMain.removeHandler(IPC.listSources)
         ipcMain.removeHandler(IPC.startScan)
         ipcMain.removeHandler(IPC.listActivities)
+        ipcMain.removeHandler(IPC.setThemeSource)
+        ipcMain.removeHandler(IPC.readPlanFile)
+        ipcMain.removeHandler(IPC.revealInFolder)
+        ipcMain.removeHandler(IPC.readPreviewFile)
       }
     })
   }
@@ -94,6 +144,10 @@ export class BridgeService extends Service {
       }
     })
   }
+}
+
+function isThemeSource(value: unknown): value is ThemeSource {
+  return value === 'system' || value === 'light' || value === 'dark'
 }
 
 function isListOptions(value: unknown): value is ListConversationsArgs {

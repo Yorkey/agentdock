@@ -22,7 +22,12 @@ export function ChatView({ items }: { items: DialogueItem[] }) {
   }, [items])
 
   if (thread.length === 0) {
-    return <div className="empty-inline">没有可还原的对话，可切换到 Trajectory 查看完整轨迹</div>
+    return (
+      <div className="empty-hero">
+        <p className="empty-title">没有可还原的对话</p>
+        <p className="empty-copy">这条会话只剩系统与工具记录，可切换到 Trajectory 查看完整轨迹</p>
+      </div>
+    )
   }
 
   return (

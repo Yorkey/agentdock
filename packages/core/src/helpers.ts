@@ -33,6 +33,14 @@ export function truncateTitle(text: string, maxLength = 80): string {
   return `${normalized.slice(0, maxLength - 1)}…`
 }
 
+/** FTS payload cap for tool_result.output and diff.patch. */
+export const SEARCH_TEXT_LIMIT = 2048
+
+function clipSearchText(text: string): string {
+  if (text.length <= SEARCH_TEXT_LIMIT) return text
+  return text.slice(0, SEARCH_TEXT_LIMIT)
+}
+
 export function partsToSearchText(parts: Part[]): string {
   const chunks: string[] = []
   for (const part of parts) {
@@ -45,10 +53,10 @@ export function partsToSearchText(parts: Part[]): string {
         chunks.push(part.name)
         break
       case 'tool_result':
-        chunks.push(part.output)
+        chunks.push(clipSearchText(part.output))
         break
       case 'diff':
-        chunks.push(part.path, part.patch)
+        chunks.push(part.path, clipSearchText(part.patch))
         break
       default:
         break

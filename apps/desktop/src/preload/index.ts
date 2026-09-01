@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron'
-import { IPC, type DesktopApi, type ScanDone, type ScanProgress } from '@chats/plugin-bridge/ipc'
+import { IPC, type DesktopApi, type ScanDone, type ScanProgress } from '@agentdock/plugin-bridge/ipc'
 
 function listen<T>(channel: string, listener: (payload: T) => void): () => void {
   const wrapped = (_event: IpcRendererEvent, payload: T) => {
@@ -18,6 +18,10 @@ const api: DesktopApi = {
   listSources: () => ipcRenderer.invoke(IPC.listSources),
   startScan: () => ipcRenderer.invoke(IPC.startScan),
   listActivities: () => ipcRenderer.invoke(IPC.listActivities),
+  setThemeSource: (source) => ipcRenderer.invoke(IPC.setThemeSource, source),
+  readPlanFile: (conversationId, path) => ipcRenderer.invoke(IPC.readPlanFile, conversationId, path),
+  revealInFolder: (path, workspace) => ipcRenderer.invoke(IPC.revealInFolder, path, workspace),
+  readPreviewFile: (path, workspace) => ipcRenderer.invoke(IPC.readPreviewFile, path, workspace),
   onScanProgress: (listener) => listen<ScanProgress>(IPC.scanProgress, listener),
   onScanDone: (listener) => listen<ScanDone>(IPC.scanDone, listener)
 }

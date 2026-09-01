@@ -1,6 +1,5 @@
-import type { Message } from '@chats/core'
 import { utilityProcess, type UtilityProcess } from 'electron'
-import type { ScanDone, ScanEngine, ScanJob, ScanProgress } from '@chats/plugin-registry/types'
+import type { ScanDone, ScanEngine, ScanJob, ScanProgress } from '@agentdock/plugin-registry/types'
 import {
   isUnchanged,
   isWorkerMessage,
@@ -13,12 +12,6 @@ export interface UtilityScanEngine extends ScanEngine {
   dispose(): void
 }
 
-function yieldEventLoop(): Promise<void> {
-  return new Promise((resolve) => {
-    setImmediate(resolve)
-  })
-}
-
 /**
  * electron-vite `?modulePath` 产出的路径仍指向 asar 内文件。
  * utilityProcess.fork 不能执行 asar 里的脚本，需改到 asar.unpacked。
@@ -27,7 +20,10 @@ export function resolveUtilityWorkerPath(workerPath: string): string {
   return workerPath.replace(/app\.asar(?!\.unpacked)/, 'app.asar.unpacked')
 }
 
-export function createUtilityScanEngine(workerPath: string): UtilityScanEngine {
+export function createUtilityScanEngine(
+  workerPath: string,
+  storePath: string
+): UtilityScanEngine {
   let current: UtilityProcess | undefined
   const modulePath = resolveUtilityWorkerPath(workerPath)
 
@@ -35,14 +31,14 @@ export function createUtilityScanEngine(workerPath: string): UtilityScanEngine {
     async scan(job) {
       engine.dispose()
       const child = utilityProcess.fork(modulePath, [], {
-        serviceName: 'chats-scan',
+        serviceName: 'agentdock-scan',
         stdio: ['ignore', 'pipe', 'pipe']
       })
       current = child
       pipeChildLogs(child)
 
       try {
-        return await runWorkerScan(child, job)
+        return await runWorkerScan(child, job, storePath)
       } finally {
         if (current === child) {
           child.kill()
@@ -74,9 +70,12 @@ function send(child: UtilityProcess, message: ParentToWorker): void {
   child.postMessage(message)
 }
 
-async function runWorkerScan(child: UtilityProcess, job: ScanJob): Promise<ScanDone> {
+async function runWorkerScan(
+  child: UtilityProcess,
+  job: ScanJob,
+  storePath: string
+): Promise<ScanDone> {
   const result: ScanDone = { processed: 0, skipped: 0, written: 0 }
-  const pending: Message[] = []
 
   return await new Promise<ScanDone>((resolve) => {
     let settled = false
@@ -97,7 +96,7 @@ async function runWorkerScan(child: UtilityProcess, job: ScanJob): Promise<ScanD
     const onSpawn = () => {
       if (started) return
       started = true
-      send(child, { type: 'start', sourceIds: job.sourceIds })
+      send(child, { type: 'start', sourceIds: job.sourceIds, storePath })
     }
 
     let messageQueue = Promise.resolve()
@@ -109,7 +108,6 @@ async function runWorkerScan(child: UtilityProcess, job: ScanJob): Promise<ScanD
             child,
             job,
             result,
-            pending,
             getTotal: () => total,
             setTotal: (value) => {
               total = value
@@ -149,7 +147,6 @@ async function handleWorkerMessage(
     child: UtilityProcess
     job: ScanJob
     result: ScanDone
-    pending: Message[]
     getTotal: () => number
     setTotal: (value: number) => void
     finish: (value: ScanDone) => void
@@ -177,18 +174,10 @@ async function handleWorkerMessage(
       })
       return
     }
-    case 'batch':
-      ctx.pending.push(...message.messages)
-      return
-    case 'file': {
-      const messages = ctx.pending.splice(0)
-      ctx.job.replaceConversation(message.conversation, messages, message.ref)
+    case 'file':
       ctx.result.written += 1
       ctx.result.processed += 1
-      send(ctx.child, { type: 'ack' })
-      await yieldEventLoop()
       return
-    }
     case 'progress':
       ctx.job.onProgress({
         sourceId: message.sourceId,
@@ -201,13 +190,11 @@ async function handleWorkerMessage(
       })
       return
     case 'file-error':
-      ctx.pending.length = 0
       ctx.result.processed += 1
       if (!ctx.result.error) {
         ctx.result.error = `${message.path}: ${message.error}`
       }
       ctx.job.onProgress(toProgress(message.sourceId, message.path, ctx.result, ctx.getTotal()))
-      send(ctx.child, { type: 'ack' })
       return
     case 'done':
       ctx.finish(ctx.result)

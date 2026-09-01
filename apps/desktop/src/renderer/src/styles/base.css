@@ -1,0 +1,210 @@
+/* 重置、文档级样式、控件基础样式、焦点态、滚动条。 */
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  height: 100%;
+  background: var(--surface-1);
+  color: var(--text-1);
+}
+
+html {
+  font-family: var(--font-sans);
+  font-size: var(--font-size);
+}
+
+button,
+input {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+/*
+ * 统一焦点态。只在键盘触发时出现，用 box-shadow 而非 outline，
+ * 这样能贴着圆角。组件里不要再写 `outline: none`。
+ */
+:where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: 2px solid transparent; /* forced-colors 下的兜底 */
+  outline-offset: 0;
+  box-shadow: 0 0 0 2px var(--focus-ring);
+}
+
+/* 行内文字按钮：错误重试、清除搜索这类 */
+.btn-inline {
+  height: 24px;
+  padding: 0 10px;
+  border: 1px solid currentColor;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: inherit;
+  font-size: 12px;
+  transition: background-color var(--motion-fast) var(--ease);
+}
+
+.btn-inline:hover {
+  background: var(--surface-hover);
+}
+
+/* 图标按钮，点击区 28x28 */
+.icon-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-3);
+  transition:
+    background-color var(--motion-fast) var(--ease),
+    color var(--motion-fast) var(--ease);
+}
+
+.icon-btn:hover:not(:disabled) {
+  background: var(--surface-hover);
+  color: var(--text-1);
+}
+
+.icon-btn:disabled {
+  color: var(--text-3);
+  cursor: default;
+}
+
+.icon-btn[aria-busy='true'] .icon-16 {
+  animation: spin 1s linear infinite;
+}
+
+.icon-16 {
+  width: 16px;
+  height: 16px;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* 骨架屏 */
+.skeleton-list {
+  padding: 8px 12px;
+}
+
+.skeleton-row {
+  display: flex;
+  align-items: center;
+  height: 32px;
+}
+
+/* 占位宽度对齐 .chat-inner，避免骨架屏比真实内容宽出一大截 */
+.skeleton-pane {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 20px 24px;
+}
+
+.skeleton-bar {
+  display: block;
+  height: 10px;
+  width: 100%;
+  border-radius: var(--radius-xs);
+  background:
+    linear-gradient(
+      90deg,
+      var(--skeleton-base) 0%,
+      var(--skeleton-sheen) 50%,
+      var(--skeleton-base) 100%
+    )
+    var(--skeleton-base);
+  background-size: 200% 100%;
+  animation: skeleton-sheen 1.4s ease-in-out infinite;
+}
+
+.skeleton-bar.is-title {
+  height: 15px;
+  width: 42%;
+}
+
+.skeleton-bar.is-para {
+  height: 12px;
+}
+
+.skeleton-row:nth-child(3n) .skeleton-bar {
+  width: 58%;
+}
+
+.skeleton-row:nth-child(3n + 1) .skeleton-bar {
+  width: 82%;
+}
+
+.skeleton-row:nth-child(3n + 2) .skeleton-bar {
+  width: 70%;
+}
+
+.skeleton-bar.is-para:nth-of-type(even) {
+  width: 76%;
+}
+
+@keyframes skeleton-sheen {
+  from {
+    background-position: 120% 0;
+  }
+  to {
+    background-position: -20% 0;
+  }
+}
+
+/* 虚拟列表的定位容器，Chat / Trajectory / 侧栏共用 */
+.virtual-inner {
+  position: relative;
+  width: 100%;
+}
+
+.sidebar-scroll::-webkit-scrollbar,
+.chat-scroll::-webkit-scrollbar,
+.traj-list::-webkit-scrollbar {
+  width: 8px;
+}
+
+.sidebar-scroll::-webkit-scrollbar-thumb,
+.chat-scroll::-webkit-scrollbar-thumb,
+.traj-list::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: var(--radius-xs);
+}
+
+/* 关掉所有过渡与动画，骨架屏与扫描进度退化为静态底色 */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .skeleton-bar {
+    background: var(--skeleton-base);
+  }
+
+  .scan-track.is-indeterminate .scan-fill {
+    width: 100%;
+    transform: none;
+    animation: none !important;
+  }
+}

@@ -1,5 +1,5 @@
 import { Service, type Context } from 'cordis'
-import type { Conversation, FileFingerprint, Message, Resource, SourceFileRef } from '@chats/core'
+import type { Conversation, FileFingerprint, Message, Resource, SourceFileRef } from '@agentdock/core'
 import { SqliteStore, type ListConversationsOptions } from './database.ts'
 
 export type { ListConversationsOptions }
@@ -47,6 +47,10 @@ export class StoreService extends Service {
 
   getFingerprint(sourceId: string, path: string): FileFingerprint | undefined {
     return this.impl.getFingerprint(sourceId, path)
+  }
+
+  listFingerprints(): FileFingerprint[] {
+    return this.impl.listFingerprints()
   }
 
   setFingerprint(fingerprint: FileFingerprint, conversationId: string): void {

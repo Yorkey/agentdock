@@ -1,4 +1,4 @@
-import type { DesktopApi } from '@chats/plugin-bridge/ipc'
+import type { DesktopApi } from '@agentdock/plugin-bridge/ipc'
 
 export type { DesktopApi }
 

@@ -1,5 +1,5 @@
-import type { Message, Part, Role, SourceFileRef } from '@chats/core'
-import { hashId, makeConversationId, truncateTitle } from '@chats/core'
+import type { Message, Part, Role, SourceFileRef } from '@agentdock/core'
+import { hashId, makeConversationId, truncateTitle } from '@agentdock/core'
 import { createReadStream } from 'node:fs'
 import { basename } from 'node:path'
 import { createInterface } from 'node:readline'
@@ -66,13 +66,19 @@ interface ClaudeRecord {
     filename?: string
     displayPath?: string
     snippet?: string
+    planFilePath?: string
+    filePath?: string
   }
 }
 
 interface IndexedRecord {
-  rec: ClaudeRecord
+  uuid: string
+  parentId: string | undefined
+  isSidechain: boolean
   index: number
   time: number
+  parts: Part[]
+  role: Role | undefined
 }
 
 function isObject(value: unknown): value is Record<string, unknown> {
@@ -98,22 +104,23 @@ function conversationKey(path: string, sessionId: string | undefined): string {
   return base || path
 }
 
-async function readJsonl(path: string): Promise<unknown[]> {
-  const rows: unknown[] = []
-  const rl = createInterface({
-    input: createReadStream(path, { encoding: 'utf8' }),
-    crlfDelay: Infinity
-  })
-  for await (const line of rl) {
-    const trimmed = line.trim()
-    if (!trimmed) continue
-    try {
-      rows.push(JSON.parse(trimmed))
-    } catch {
-      // skip malformed lines
+async function* readJsonl(path: string): AsyncIterable<unknown> {
+  const stream = createReadStream(path, { encoding: 'utf8' })
+  const lines = createInterface({ input: stream, crlfDelay: Infinity })
+  try {
+    for await (const line of lines) {
+      const trimmed = line.trim()
+      if (!trimmed) continue
+      try {
+        yield JSON.parse(trimmed) as unknown
+      } catch {
+        // skip malformed lines
+      }
     }
+  } finally {
+    lines.close()
+    stream.destroy()
   }
-  return rows
 }
 
 function stringifyUnknown(value: unknown): string {
@@ -237,6 +244,11 @@ function partsFromAttachment(rec: ClaudeRecord): Part[] {
     const snippet = att.snippet ? `\n${att.snippet.slice(0, 2000)}` : ''
     return [{ kind: 'text', text: `[edited] ${name}${snippet}` }]
   }
+  if (kind === 'plan_mode' || kind === 'plan_mode_exit') {
+    const path = att.planFilePath || att.filePath || att.displayPath || att.filename
+    if (!path) return []
+    return [{ kind: 'text', text: `[plan] ${path}` }]
+  }
   return []
 }
 
@@ -285,7 +297,7 @@ function walkTree(nodes: Map<string, IndexedRecord>): IndexedRecord[] {
   const roots: IndexedRecord[] = []
 
   for (const node of nodes.values()) {
-    const parentId = parentIdOf(node.rec)
+    const parentId = node.parentId
     if (parentId && nodes.has(parentId)) {
       const list = children.get(parentId)
       if (list) list.push(node)
@@ -310,16 +322,15 @@ function walkTree(nodes: Map<string, IndexedRecord>): IndexedRecord[] {
 
   while (stack.length > 0) {
     const node = stack.pop()!
-    const id = node.rec.uuid
-    if (!id || visited.has(id)) continue
-    visited.add(id)
+    if (visited.has(node.uuid)) continue
+    visited.add(node.uuid)
     ordered.push(node)
-    const kids = children.get(id)
+    const kids = children.get(node.uuid)
     if (!kids) continue
     const trunk: IndexedRecord[] = []
     const side: IndexedRecord[] = []
     for (const child of kids) {
-      if (child.rec.isSidechain === true) side.push(child)
+      if (child.isSidechain) side.push(child)
       else trunk.push(child)
     }
     // Push side before trunk (and each group last-first) so pop order is
@@ -335,8 +346,6 @@ export async function parseClaudeSession(
   ref: SourceFileRef,
   sourceId: string
 ): Promise<ParsedClaudeSession> {
-  const rows = await readJsonl(ref.path)
-
   let sessionId: string | undefined
   let customTitle: string | undefined
   let aiTitle: string | undefined
@@ -348,10 +357,14 @@ export async function parseClaudeSession(
   let updatedAt = 0
 
   const nodes = new Map<string, IndexedRecord>()
+  let index = 0
 
-  for (let index = 0; index < rows.length; index++) {
-    const rec = asRecord(rows[index])
-    if (!rec) continue
+  for await (const row of readJsonl(ref.path)) {
+    const rec = asRecord(row)
+    if (!rec) {
+      index += 1
+      continue
+    }
 
     const type = rec.type ?? ''
     if (typeof rec.sessionId === 'string' && rec.sessionId) sessionId = rec.sessionId
@@ -372,22 +385,41 @@ export async function parseClaudeSession(
 
     if (type === 'custom-title' && typeof rec.customTitle === 'string' && rec.customTitle) {
       customTitle = rec.customTitle
+      index += 1
       continue
     }
     if (type === 'ai-title' && typeof rec.aiTitle === 'string' && rec.aiTitle) {
       aiTitle = rec.aiTitle
+      index += 1
       continue
     }
 
-    if (SKIP_TYPES.has(type) || TITLE_TYPES.has(type)) continue
+    if (SKIP_TYPES.has(type) || TITLE_TYPES.has(type)) {
+      index += 1
+      continue
+    }
 
     const uuid = rec.uuid
-    if (typeof uuid !== 'string' || !uuid) continue
+    if (typeof uuid !== 'string' || !uuid) {
+      index += 1
+      continue
+    }
     if (type !== 'user' && type !== 'assistant' && type !== 'system' && type !== 'attachment') {
+      index += 1
       continue
     }
 
-    nodes.set(uuid, { rec, index, time })
+    const parts = emitParts(rec)
+    nodes.set(uuid, {
+      uuid,
+      parentId: parentIdOf(rec),
+      isSidechain: rec.isSidechain === true,
+      index,
+      time,
+      parts,
+      role: emitRole(rec, parts)
+    })
+    index += 1
   }
 
   const key = conversationKey(ref.path, sessionId)
@@ -399,19 +431,14 @@ export async function parseClaudeSession(
   let seq = 0
 
   for (const node of ordered) {
-    const parts = emitParts(node.rec)
-    const role = emitRole(node.rec, parts)
-    if (!role || parts.length === 0) continue
-
-    const uuid = node.rec.uuid ?? String(node.index)
-    const side = node.rec.isSidechain === true ? '1' : '0'
+    if (!node.role || node.parts.length === 0) continue
     messages.push({
-      id: hashId(conversationId, uuid, side),
+      id: hashId(conversationId, node.uuid, node.isSidechain ? '1' : '0'),
       conversationId,
       seq,
-      role,
+      role: node.role,
       createdAt: node.time || createdAt,
-      parts
+      parts: node.parts
     })
     seq += 1
   }

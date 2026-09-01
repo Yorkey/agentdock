@@ -1,4 +1,4 @@
-import type { Role } from '@chats/core'
+import type { Role } from '@agentdock/core'
 
 export const ROLE_LABEL: Record<Role, string> = {
   user: '用户',

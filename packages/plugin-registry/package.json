@@ -1,6 +1,6 @@
 {
-  "name": "@chats/plugin-registry",
-  "version": "0.0.0",
+  "name": "@agentdock/plugin-registry",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "exports": {
@@ -19,8 +19,8 @@
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
-    "@chats/core": "workspace:*",
-    "@chats/plugin-store": "workspace:*",
+    "@agentdock/core": "workspace:*",
+    "@agentdock/plugin-store": "workspace:*",
     "cordis": "4.0.0-rc.9"
   },
   "devDependencies": {

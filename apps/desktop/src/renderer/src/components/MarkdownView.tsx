@@ -1,17 +1,20 @@
-import type { ReactNode } from 'react'
+import { memo, useMemo, type ReactNode } from 'react'
 import {
   parseMarkdown,
   type BlockNode,
   type InlineNode
 } from '../lib/markdown'
+import { hrefToLocalPath } from '../lib/file-href'
+import { useFilePreview } from './FilePreview'
+import { useTipFor } from './HoverTip'
 
-export function MarkdownView({ text }: { text: string }) {
-  const blocks = parseMarkdown(text)
+export const MarkdownView = memo(function MarkdownView({ text }: { text: string }) {
+  const blocks = useMemo(() => parseMarkdown(text), [text])
   if (blocks.length === 0) return null
-  return <div className="md">{blocks.map((block, index) => renderBlock(block, index))}</div>
-}
+  return <div className="md">{blocks.map((block, index) => renderMarkdownBlock(block, index))}</div>
+})
 
-function renderBlock(block: BlockNode, key: number): ReactNode {
+export function renderMarkdownBlock(block: BlockNode, key: number): ReactNode {
   switch (block.type) {
     case 'h': {
       const Tag = (`h${block.level}` as 'h1' | 'h2' | 'h3' | 'h4')
@@ -100,19 +103,39 @@ function renderInline(nodes: InlineNode[]): ReactNode[] {
         return <em key={index}>{renderInline(node.children)}</em>
       case 'link':
         return (
-          <a
-            key={index}
-            className="md-link"
-            href={safeHref(node.href)}
-            title={node.href}
-            target="_blank"
-            rel="noreferrer"
-          >
+          <MdLink key={index} href={node.href}>
             {renderInline(node.children)}
-          </a>
+          </MdLink>
         )
     }
   })
+}
+
+/** 单独成组件才能挂 hook：链接文案通常是短标题，完整 URL 交给 tooltip */
+function MdLink({ href, children }: { href: string; children: ReactNode }) {
+  const tip = useTipFor(href)
+  const preview = useFilePreview()
+  const local = hrefToLocalPath(href)
+  if (local && preview) {
+    return (
+      <a
+        className="md-link"
+        href={safeHref(href)}
+        {...tip}
+        onClick={(event) => {
+          event.preventDefault()
+          preview.open(local)
+        }}
+      >
+        {children}
+      </a>
+    )
+  }
+  return (
+    <a className="md-link" href={safeHref(href)} target="_blank" rel="noreferrer" {...tip}>
+      {children}
+    </a>
+  )
 }
 
 function safeHref(href: string): string {

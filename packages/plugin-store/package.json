@@ -1,6 +1,6 @@
 {
-  "name": "@chats/plugin-store",
-  "version": "0.0.0",
+  "name": "@agentdock/plugin-store",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "exports": {
@@ -15,7 +15,7 @@
     "verify:fts": "node ./scripts/verify-fts.mjs"
   },
   "dependencies": {
-    "@chats/core": "workspace:*",
+    "@agentdock/core": "workspace:*",
     "cordis": "4.0.0-rc.9"
   },
   "devDependencies": {

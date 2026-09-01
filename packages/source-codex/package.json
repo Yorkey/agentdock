@@ -1,6 +1,6 @@
 {
-  "name": "@chats/source-codex",
-  "version": "0.0.0",
+  "name": "@agentdock/source-codex",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "exports": {
@@ -15,8 +15,8 @@
     "parse:sample": "node --experimental-strip-types ./scripts/parse-sample.ts"
   },
   "dependencies": {
-    "@chats/core": "workspace:*",
-    "@chats/plugin-registry": "workspace:*",
+    "@agentdock/core": "workspace:*",
+    "@agentdock/plugin-registry": "workspace:*",
     "cordis": "4.0.0-rc.9"
   },
   "devDependencies": {

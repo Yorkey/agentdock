@@ -1,5 +1,5 @@
 import type { Context } from 'cordis'
-import type {} from '@chats/plugin-workbench'
+import type {} from '@agentdock/plugin-workbench'
 
 const plugin = {
   name: 'module-chats',

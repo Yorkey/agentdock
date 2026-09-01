@@ -1,8 +1,8 @@
-import type { Conversation, ConversationSource, Message, SourceFileRef } from '@chats/core'
-import { claudeCodeSource } from '@chats/source-claude-code'
-import { codexSource } from '@chats/source-codex'
-import { cursorSource } from '@chats/source-cursor'
-import { MESSAGE_BATCH_SIZE, type DiscoveredFile } from './protocol.ts'
+import type { Conversation, ConversationSource, Message, SourceFileRef } from '@agentdock/core'
+import { claudeCodeSource } from '@agentdock/source-claude-code'
+import { codexSource } from '@agentdock/source-codex'
+import { cursorSource } from '@agentdock/source-cursor'
+import type { DiscoveredFile } from './protocol.ts'
 
 export const builtinSources: ConversationSource[] = [
   cursorSource,
@@ -33,23 +33,11 @@ export async function discoverFiles(sourceIds: string[]): Promise<DiscoveredFile
 
 export async function parseOne(
   source: ConversationSource,
-  ref: SourceFileRef,
-  onBatch?: (batch: Message[]) => void | Promise<void>,
-  batchSize = MESSAGE_BATCH_SIZE
+  ref: SourceFileRef
 ): Promise<{ conversation: Conversation; messages: Message[] }> {
   const messages: Message[] = []
-  let batch: Message[] = []
   for await (const message of source.parse(ref)) {
     messages.push(message)
-    if (!onBatch) continue
-    batch.push(message)
-    if (batch.length >= batchSize) {
-      await onBatch(batch)
-      batch = []
-    }
-  }
-  if (onBatch && batch.length > 0) {
-    await onBatch(batch)
   }
   return {
     conversation: source.meta(ref, messages),

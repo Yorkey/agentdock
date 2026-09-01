@@ -4,10 +4,12 @@ import { WorkspaceSidebar } from '../../components/WorkspaceSidebar'
 import { useIndexedChats } from '../../hooks/useIndexedChats'
 import { formatCount } from '../../lib/format'
 import { buildSourceTree, sourceLabelOf } from '../../lib/tree'
+import { PaneError, PaneSkeleton } from '../../workbench/Feedback'
 import type { ModuleProps } from '../../workbench/types'
 
 export function ChatsModule({ hidden }: ModuleProps) {
-  const { sources, conversations, loading, error, scanning, progress, startScan } = useIndexedChats()
+  const { sources, conversations, loading, error, scanning, progress, startScan, retry } =
+    useIndexedChats()
   const [activeId, setActiveId] = useState<string | null>(null)
 
   const tree = useMemo(() => buildSourceTree(sources, conversations), [sources, conversations])
@@ -18,26 +20,44 @@ export function ChatsModule({ hidden }: ModuleProps) {
 
   const scanLabel = scanning
     ? progress
-      ? `扫描中 ${formatCount(progress.processed)}`
+      ? progress.total > 0
+        ? `扫描中 ${formatCount(progress.done)} / ${formatCount(progress.total)}`
+        : `扫描中 ${formatCount(progress.done)}`
       : '扫描中…'
     : '扫描会话'
+  const scanRatio =
+    scanning && progress && progress.total > 0
+      ? Math.min(1, progress.done / progress.total)
+      : null
+
+  const booting = loading && conversations.length === 0
 
   return (
     <div className={`module-root${hidden ? ' is-hidden' : ''}`} aria-hidden={hidden}>
-      {error ? <div className="app-banner">{error}</div> : null}
+      {error ? <PaneError message={error} onRetry={() => void retry()} /> : null}
       <div className="module-body">
         <WorkspaceSidebar
           tree={tree}
           conversations={conversations}
           selectedId={activeId}
+          loading={loading}
           scanning={scanning}
           scanLabel={scanLabel}
+          scanRatio={scanRatio}
           onSelect={setActiveId}
           onScan={() => void startScan()}
         />
-        <SessionPane conversation={active} sourceLabel={active ? sourceLabelOf(sources, active.sourceId) : ''} />
+        {booting ? (
+          <section className="session-pane">
+            <PaneSkeleton label="正在读取索引" rows={5} />
+          </section>
+        ) : (
+          <SessionPane
+            conversation={active}
+            sourceLabel={active ? sourceLabelOf(sources, active.sourceId) : ''}
+          />
+        )}
       </div>
-      {loading ? <div className="boot-mask">正在读取索引…</div> : null}
     </div>
   )
 }

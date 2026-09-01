@@ -4,16 +4,16 @@ import react from '@vitejs/plugin-react'
 import { defineConfig } from 'electron-vite'
 
 const bundledWorkspacePkgs = [
-  '@chats/core',
-  '@chats/plugin-store',
-  '@chats/plugin-registry',
-  '@chats/plugin-workbench',
-  '@chats/plugin-bridge',
-  '@chats/module-chats',
-  '@chats/module-skills',
-  '@chats/source-cursor',
-  '@chats/source-claude-code',
-  '@chats/source-codex',
+  '@agentdock/core',
+  '@agentdock/plugin-store',
+  '@agentdock/plugin-registry',
+  '@agentdock/plugin-workbench',
+  '@agentdock/plugin-bridge',
+  '@agentdock/module-chats',
+  '@agentdock/module-skills',
+  '@agentdock/source-cursor',
+  '@agentdock/source-claude-code',
+  '@agentdock/source-codex',
   // 纯 ESM，打进产物以免 pnpm workspace / 打包后找不到 node_modules
   'cordis'
 ]
@@ -51,10 +51,10 @@ export default defineConfig({
     build: {
       externalizeDeps: {
         exclude: [
-          '@chats/core',
-          '@chats/plugin-bridge',
-          '@chats/plugin-registry',
-          '@chats/plugin-workbench'
+          '@agentdock/core',
+          '@agentdock/plugin-bridge',
+          '@agentdock/plugin-registry',
+          '@agentdock/plugin-workbench'
         ]
       },
       rollupOptions: {

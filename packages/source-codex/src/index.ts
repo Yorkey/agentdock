@@ -1,5 +1,5 @@
 import type { Context } from 'cordis'
-import type {} from '@chats/plugin-registry'
+import type {} from '@agentdock/plugin-registry'
 import { codexSource } from './source.ts'
 
 export const name = 'source-codex'

@@ -1,5 +1,5 @@
-import type { Conversation, ConversationSource, Message, SourceFileRef } from '@chats/core'
-import { makeConversationId, truncateTitle } from '@chats/core'
+import type { Conversation, ConversationSource, Message, SourceFileRef } from '@agentdock/core'
+import { makeConversationId, truncateTitle } from '@agentdock/core'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { readdir, stat } from 'node:fs/promises'

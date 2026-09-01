@@ -1,5 +1,5 @@
 import { Service, type Context } from 'cordis'
-import type { WorkbenchContribution } from '@chats/core'
+import type { WorkbenchContribution } from '@agentdock/core'
 
 export class WorkbenchRegistry extends Service {
   static provide = 'workbench'

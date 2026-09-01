@@ -39,4 +39,9 @@ if (inline.map((node) => node.type).join(',') !== 'text,code,text,strong') {
   throw new Error(`inline: ${inline.map((node) => node.type).join(',')}`)
 }
 
+const image = parseInline('见 ![截图](./shot.png) 与 [a.ts](src/a.ts)')
+const imageLink = image.find((node) => node.type === 'link' && node.href === './shot.png')
+const fileLink = image.find((node) => node.type === 'link' && node.href === 'src/a.ts')
+if (!imageLink || !fileLink) throw new Error('image / file link not parsed')
+
 console.log('ok: markdown headings / lists / strong / code / links')

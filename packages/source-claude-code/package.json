@@ -1,6 +1,6 @@
 {
-  "name": "@chats/source-claude-code",
-  "version": "0.0.0",
+  "name": "@agentdock/source-claude-code",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "exports": {
@@ -12,11 +12,12 @@
   },
   "scripts": {
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "sample": "node --experimental-strip-types ./scripts/sample.ts"
+    "sample": "node --experimental-strip-types ./scripts/sample.ts",
+    "verify:parse": "node --experimental-strip-types ./scripts/verify-parse.ts"
   },
   "dependencies": {
-    "@chats/core": "workspace:*",
-    "@chats/plugin-registry": "workspace:*",
+    "@agentdock/core": "workspace:*",
+    "@agentdock/plugin-registry": "workspace:*",
     "cordis": "4.0.0-rc.9"
   },
   "devDependencies": {

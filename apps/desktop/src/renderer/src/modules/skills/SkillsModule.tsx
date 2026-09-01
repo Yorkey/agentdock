@@ -15,7 +15,7 @@ export function SkillsModule({ hidden }: ModuleProps) {
         <section className="session-pane">
           <div className="empty-hero">
             <p className="empty-title">Skill 管理</p>
-            <p className="empty-copy">尚未实现。后续会扫描本机 Agent skill 目录，并在左侧列出可启用的 skill。</p>
+            <p className="empty-copy">尚未实现，后续会扫描本机 Agent skill 目录并在左侧列出可启用的 skill</p>
           </div>
         </section>
       </div>

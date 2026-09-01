@@ -1,6 +1,6 @@
 {
-  "name": "@chats/plugin-bridge",
-  "version": "0.0.0",
+  "name": "@agentdock/plugin-bridge",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "exports": {
@@ -19,10 +19,10 @@
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
-    "@chats/core": "workspace:*",
-    "@chats/plugin-registry": "workspace:*",
-    "@chats/plugin-store": "workspace:*",
-    "@chats/plugin-workbench": "workspace:*",
+    "@agentdock/core": "workspace:*",
+    "@agentdock/plugin-registry": "workspace:*",
+    "@agentdock/plugin-store": "workspace:*",
+    "@agentdock/plugin-workbench": "workspace:*",
     "cordis": "4.0.0-rc.9"
   },
   "peerDependencies": {

@@ -22,7 +22,7 @@ export function Collapsible({
       open={open}
       onToggle={(event) => setOpen(event.currentTarget.open)}
     >
-      <summary className="collapse-summary">
+      <summary className="collapse-summary" aria-expanded={open}>
         <span className="collapse-title">{title}</span>
         {badge}
       </summary>

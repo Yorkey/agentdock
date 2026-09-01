@@ -136,7 +136,17 @@ export function parseInline(source: string): InlineNode[] {
       }
     }
 
-    if (remaining.startsWith('[') ) {
+    if (remaining.startsWith('![')) {
+      const image = /^!\[([^\]]*)\]\(([^)\s]+)(?:\s+"[^"]*")?\)/.exec(remaining)
+      if (image?.[2]) {
+        const label = image[1] || image[2]
+        nodes.push({ type: 'link', href: image[2], children: parseInline(label) })
+        remaining = remaining.slice(image[0].length)
+        continue
+      }
+    }
+
+    if (remaining.startsWith('[')) {
       const link = /^\[([^\]]+)\]\(([^)\s]+)(?:\s+"[^"]*")?\)/.exec(remaining)
       if (link?.[1] != null && link[2]) {
         nodes.push({ type: 'link', href: link[2], children: parseInline(link[1]) })
@@ -165,7 +175,7 @@ export function parseInline(source: string): InlineNode[] {
       }
     }
 
-    const next = remaining.search(/(`|\*\*|__|\*|_|\[)/)
+    const next = remaining.search(/(`|\*\*|__|\*|_|!\[|\[)/)
     if (next === -1) {
       pushText(remaining)
       break

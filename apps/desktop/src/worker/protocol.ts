@@ -1,4 +1,4 @@
-import type { Conversation, Message, SourceFileRef } from '@chats/core'
+import type { SourceFileRef } from '@agentdock/core'
 
 export function isUnchanged(
   fingerprint: { mtimeMs: number; size: number } | undefined,
@@ -9,34 +9,25 @@ export function isUnchanged(
   )
 }
 
-export const MESSAGE_BATCH_SIZE = 50
-
 export interface DiscoveredFile {
   sourceId: string
   ref: SourceFileRef
 }
 
 export type ParentToWorker =
-  | { type: 'start'; sourceIds: string[] }
+  | { type: 'start'; sourceIds: string[]; storePath: string }
   | {
       type: 'parse'
       files: DiscoveredFile[]
       total: number
       completed: number
     }
-  | { type: 'ack' }
   | { type: 'abort' }
 
 export type WorkerToParent =
   | { type: 'ready' }
   | { type: 'discovered'; files: DiscoveredFile[] }
-  | { type: 'batch'; sourceId: string; path: string; messages: Message[] }
-  | {
-      type: 'file'
-      sourceId: string
-      ref: SourceFileRef
-      conversation: Conversation
-    }
+  | { type: 'file'; sourceId: string; path: string }
   | { type: 'progress'; sourceId: string; path: string; done: number; total: number }
   | { type: 'file-error'; sourceId: string; path: string; error: string }
   | { type: 'done' }
@@ -45,7 +36,7 @@ export type WorkerToParent =
 export function isParentMessage(value: unknown): value is ParentToWorker {
   if (value == null || typeof value !== 'object' || !('type' in value)) return false
   const type = (value as { type: unknown }).type
-  return type === 'start' || type === 'parse' || type === 'ack' || type === 'abort'
+  return type === 'start' || type === 'parse' || type === 'abort'
 }
 
 export function isWorkerMessage(value: unknown): value is WorkerToParent {
@@ -54,7 +45,6 @@ export function isWorkerMessage(value: unknown): value is WorkerToParent {
   return (
     type === 'ready' ||
     type === 'discovered' ||
-    type === 'batch' ||
     type === 'file' ||
     type === 'progress' ||
     type === 'file-error' ||

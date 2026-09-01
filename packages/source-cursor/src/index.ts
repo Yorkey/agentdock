@@ -1,5 +1,5 @@
 import type { Context } from 'cordis'
-import type {} from '@chats/plugin-registry'
+import type {} from '@agentdock/plugin-registry'
 import { cursorSource } from './source.ts'
 
 export { cursorSource, conversationIdFromPath, projectsRoot, SOURCE_ID, SOURCE_LABEL } from './source.ts'

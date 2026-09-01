@@ -70,6 +70,19 @@ export function useIndexedChats() {
     }
   }, [refresh])
 
+  /** 供错误态的「重试」用：清掉错误后重新拉索引。 */
+  const retry = useCallback(async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      await refresh()
+    } catch (err: unknown) {
+      setError(errorMessage(err))
+    } finally {
+      setLoading(false)
+    }
+  }, [refresh])
+
   const startScan = useCallback(async () => {
     setScanning(true)
     setError(null)
@@ -96,6 +109,7 @@ export function useIndexedChats() {
     progress,
     lastScan,
     startScan,
-    refresh
+    refresh,
+    retry
   }
 }
