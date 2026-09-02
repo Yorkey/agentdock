@@ -17,7 +17,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.tag }}
+          # 始终用 main 上的最新打包配置（含签名/公证）；tag 仅用于上传 Release。
+          ref: main
 
       - uses: pnpm/action-setup@v4
         with:
@@ -44,7 +45,9 @@ jobs:
           security import /tmp/cert.p12 -k build.keychain -P "$CSC_KEY_PASSWORD" \
             -T /usr/bin/codesign -T /usr/bin/productsign -A
           curl -fsSL -o /tmp/g2.cer https://www.apple.com/certificateauthority/DeveloperIDG2CA.cer
+          curl -fsSL -o /tmp/root.cer https://www.apple.com/appleca/AppleIncRootCertificate.cer
           security import /tmp/g2.cer -k build.keychain -A
+          security import /tmp/root.cer -k build.keychain -A
           security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k actions build.keychain
           security find-identity -v -p codesigning build.keychain
 
@@ -57,6 +60,19 @@ jobs:
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: pnpm dist:mac
+
+      - name: Verify signature & notarization
+        run: |
+          APP="apps/desktop/release/mac-arm64/AgentDock.app"
+          DMG=(apps/desktop/release/*.dmg)
+          echo "→ codesign"
+          codesign -dv --verbose=2 "$APP"
+          echo "→ Gatekeeper"
+          spctl -a -vv --type execute "$APP"
+          echo "→ staple app"
+          xcrun stapler validate "$APP"
+          echo "→ staple dmg"
+          xcrun stapler validate "${DMG[0]}"
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
