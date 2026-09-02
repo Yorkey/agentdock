@@ -64,15 +64,12 @@ jobs:
       - name: Verify signature & notarization
         run: |
           APP="apps/desktop/release/mac-arm64/AgentDock.app"
-          DMG=(apps/desktop/release/*.dmg)
           echo "→ codesign"
           codesign -dv --verbose=2 "$APP"
           echo "→ Gatekeeper"
           spctl -a -vv --type execute "$APP"
-          echo "→ staple app"
+          echo "→ staple app (DMG 容器本身无需 staple，.app 有票据即可)"
           xcrun stapler validate "$APP"
-          echo "→ staple dmg"
-          xcrun stapler validate "${DMG[0]}"
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
