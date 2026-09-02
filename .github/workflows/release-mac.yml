@@ -8,6 +8,9 @@ on:
         required: true
         default: 'v1.0.0'
 
+permissions:
+  contents: write
+
 jobs:
   build-mac:
     runs-on: macos-15
@@ -63,13 +66,12 @@ jobs:
             apps/desktop/release/*.dmg
             apps/desktop/release/*.zip
 
-      - name: Attach to GitHub Release
+      - name: Upload to GitHub Release
         if: startsWith(inputs.tag, 'v')
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ inputs.tag }}
-          files: |
-            apps/desktop/release/*.dmg
-            apps/desktop/release/*.zip
+        run: |
+          gh release upload "${{ inputs.tag }}" \
+            apps/desktop/release/*.dmg \
+            apps/desktop/release/*.zip \
+            --clobber
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
