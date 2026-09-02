@@ -13,3 +13,7 @@ release
 !.vscode/extensions.json
 coverage
 *.tsbuildinfo
+.env.signing
+apps/desktop/.env.signing
+*.p12
+*.p8

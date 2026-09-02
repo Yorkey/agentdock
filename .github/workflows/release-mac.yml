@@ -1,0 +1,75 @@
+name: Release macOS
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Git tag to build (e.g. v1.0.1)'
+        required: true
+        default: 'v1.0.0'
+
+jobs:
+  build-mac:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag }}
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.12.1
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Import signing certificate
+        env:
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+        run: |
+          echo "$CSC_LINK" | base64 --decode > /tmp/cert.p12
+          security create-keychain -p actions build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p actions build.keychain
+          security set-keychain-settings -lut 21600 build.keychain
+          security import /tmp/cert.p12 -k build.keychain -P "$CSC_KEY_PASSWORD" \
+            -T /usr/bin/codesign -T /usr/bin/productsign -A
+          curl -fsSL -o /tmp/g2.cer https://www.apple.com/certificateauthority/DeveloperIDG2CA.cer
+          security import /tmp/g2.cer -k build.keychain -A
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k actions build.keychain
+          security find-identity -v -p codesigning build.keychain
+
+      - name: Build signed & notarized app
+        env:
+          CSC_KEYCHAIN: build.keychain
+          CSC_KEYCHAIN_PASSWORD: actions
+          CSC_NAME: ${{ secrets.CSC_NAME }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: pnpm dist:mac
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: AgentDock-macOS
+          path: |
+            apps/desktop/release/*.dmg
+            apps/desktop/release/*.zip
+
+      - name: Attach to GitHub Release
+        if: startsWith(inputs.tag, 'v')
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ inputs.tag }}
+          files: |
+            apps/desktop/release/*.dmg
+            apps/desktop/release/*.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
