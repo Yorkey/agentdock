@@ -334,10 +334,32 @@
   transform: translateY(-50%);
   opacity: 0;
   pointer-events: none;
+  border-radius: var(--radius-sm);
+  padding-left: 6px;
+}
+
+.ws-folder-row .file-actions.is-overlay,
+.ws-session-row .file-actions.is-overlay {
+  background:
+    linear-gradient(var(--surface-hover), var(--surface-hover)),
+    var(--surface-2);
+}
+
+.doc-item-row .file-actions.is-overlay,
+.traj-rec .file-actions.is-overlay {
+  background:
+    linear-gradient(var(--surface-hover), var(--surface-hover)),
+    var(--surface-1);
+}
+
+.doc-item-row.is-active .file-actions.is-overlay,
+.ws-session-row.is-active .file-actions.is-overlay {
+  background: var(--surface-3);
 }
 
 .doc-item-row,
 .ws-folder-row,
+.ws-session-row,
 .traj-rec-row {
   position: relative;
 }
@@ -346,6 +368,8 @@
 .doc-item-row .file-actions.is-overlay:focus-within,
 .ws-folder-row:hover .file-actions.is-overlay,
 .ws-folder-row .file-actions.is-overlay:focus-within,
+.ws-session-row:hover .file-actions.is-overlay,
+.ws-session-row .file-actions.is-overlay:focus-within,
 .traj-rec:hover .file-actions.is-overlay,
 .traj-rec .file-actions.is-overlay:focus-within,
 .traj-rec.is-focus .file-actions.is-overlay {

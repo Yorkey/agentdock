@@ -267,11 +267,29 @@
   text-transform: uppercase;
 }
 
+.sidebar-scroll-host {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
 .sidebar-scroll {
   flex: 1;
   min-height: 0;
   overflow: auto;
   padding-bottom: 16px;
+}
+
+.sidebar-source-pin {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  z-index: 2;
+  background: var(--surface-2);
 }
 
 .sidebar-virtual-row {
@@ -319,6 +337,22 @@
 
 .ws-twist svg {
   display: block;
+}
+
+.ws-folder[data-source] .ws-twist {
+  color: var(--source-default);
+}
+
+.ws-folder[data-source='cursor'] .ws-twist {
+  color: var(--source-cursor);
+}
+
+.ws-folder[data-source='claude-code'] .ws-twist {
+  color: var(--source-claude-code);
+}
+
+.ws-folder[data-source='codex'] .ws-twist {
+  color: var(--source-codex);
 }
 
 .ws-label {
@@ -373,26 +407,6 @@
   color: var(--text-3);
   font-variant-numeric: tabular-nums;
   font-size: 11px;
-}
-
-.dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: var(--source-default);
-  flex-shrink: 0;
-}
-
-.dot[data-source='cursor'] {
-  background: var(--source-cursor);
-}
-
-.dot[data-source='claude-code'] {
-  background: var(--source-claude-code);
-}
-
-.dot[data-source='codex'] {
-  background: var(--source-codex);
 }
 
 .session-pane {
@@ -679,14 +693,16 @@
   font-size: 12px;
 }
 
-.file-preview-text {
-  margin: 0;
-  padding: 12px 16px;
-  font-family: var(--font-mono);
-  font-size: 12px;
-  line-height: 1.5;
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
+.file-preview-body:has(.file-preview-monaco) {
+  overflow: hidden;
+}
+
+.file-preview-monaco {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  overflow: hidden;
 }
 
 .file-preview-image {

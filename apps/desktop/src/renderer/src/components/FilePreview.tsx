@@ -133,7 +133,7 @@ function PreviewContent({ result }: { result: FilePreviewResult }) {
           {result.truncated ? (
             <p className="file-preview-note">只显示前 512 KB</p>
           ) : null}
-          <pre className="file-preview-text">{result.text}</pre>
+          <MonacoTextPreview text={result.text} path={result.path} name={result.name} />
         </>
       )
     case 'image':
@@ -150,6 +150,52 @@ function PreviewContent({ result }: { result: FilePreviewResult }) {
       return _exhaustive
     }
   }
+}
+
+function MonacoTextPreview({
+  text,
+  path,
+  name
+}: {
+  text: string
+  path: string
+  name: string
+}) {
+  const hostRef = useRef<HTMLDivElement>(null)
+  const [failed, setFailed] = useState(false)
+
+  useEffect(() => {
+    const host = hostRef.current
+    if (!host) return
+    let cancelled = false
+    let dispose: (() => void) | undefined
+    setFailed(false)
+    void import('../lib/monaco')
+      .then(({ mountPreviewEditor }) => {
+        if (cancelled || !host.isConnected) return
+        const next = mountPreviewEditor(host, { text, path, name })
+        if (cancelled) next()
+        else dispose = next
+      })
+      .catch(() => {
+        if (!cancelled) setFailed(true)
+      })
+    return () => {
+      cancelled = true
+      dispose?.()
+    }
+  }, [text, path, name])
+
+  if (failed) {
+    return (
+      <div className="empty-hero">
+        <p className="empty-title">无法预览</p>
+        <p className="empty-copy">编辑器加载失败</p>
+      </div>
+    )
+  }
+
+  return <div ref={hostRef} className="file-preview-monaco" />
 }
 
 function CloseIcon() {

@@ -1,4 +1,4 @@
-import type { Role } from '@agentdock/core'
+import type { Conversation, Role } from '@agentdock/core'
 
 export const ROLE_LABEL: Record<Role, string> = {
   user: '用户',
@@ -101,4 +101,28 @@ export function formatDuration(ms: number): string {
 
 export function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
+}
+
+export function formatConversationCite(
+  conversation: Pick<Conversation, 'title' | 'workspace' | 'gitBranch' | 'models' | 'sourcePath'>,
+  sourceLabel: string
+): string {
+  const title = conversation.title.trim() || '未命名会话'
+  const models = conversation.models
+    .map((model) => model.trim())
+    .filter(Boolean)
+    .join(' · ')
+  const fields: Array<[string, string | undefined]> = [
+    ['来源', sourceLabel.trim() || undefined],
+    ['工作区', conversation.workspace?.trim() || undefined],
+    ['分支', conversation.gitBranch?.trim() || undefined],
+    ['模型', models || undefined],
+    ['会话文件', conversation.sourcePath.trim() || undefined]
+  ]
+  const items: string[] = []
+  for (const [label, value] of fields) {
+    if (value) items.push(`- ${label}：${value}`)
+  }
+  if (items.length === 0) return `# ${title}`
+  return [`# ${title}`, '', ...items].join('\n')
 }

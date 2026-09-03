@@ -14,8 +14,8 @@
 | 内容区不抢焦点 | 外壳（Activity Bar / 侧栏）用 `--surface-2`，内容区用 `--surface-1`；强调色只用于当前选中项与链接，不用于普通按钮底色 |
 | 过程默认折叠 | 工具调用、推理、原始 JSON、`pre` 详情一律默认收起，只显示一行摘要；用户点开才展开 |
 | 异步必须可见 | 任何超过一帧的操作都要有骨架屏 / 进度 / 错误态三选一，不允许界面停在旧数据上无提示 |
-| 不引入组件库 | 图标一律内联 SVG（`viewBox="0 0 24 24"`、`aria-hidden="true"`；线框用 `stroke="currentColor"`，实心用 `fill="currentColor"`），不装 UI 库、不装图标库 |
-| 无字面色值 | 组件样式里禁止出现 `#xxx` / `rgb()` / 颜色关键字，一律走 `var(--token)`；新增颜色先进 `tokens.css` |
+| 不引入组件库 | 图标一律内联 SVG（`viewBox="0 0 24 24"`、`aria-hidden="true"`；线框用 `stroke="currentColor"`，实心用 `fill="currentColor"`），不装 UI 库、不装图标库。例外：文件预览可懒加载 `monaco-editor`，仅只读，不装 `@monaco-editor/react` 或其他编辑器封装 |
+| 无字面色值 | 组件样式里禁止出现 `#xxx` / `rgb()` / 颜色关键字，一律走 `var(--token)`；新增颜色先进 `tokens.css`。例外：文件预览 Monaco 的语法高亮色走编辑器自带 vs / vs-dark，不要为此新增 token |
 
 ---
 
@@ -41,7 +41,7 @@
 - `system` 时**不写** `html` 上的 `data-theme` 属性（靠媒体查询兜底）；`light` / `dark` 时写 `data-theme="light" | "dark"`。模块顶层在首帧之前先写一次，避免主题闪一下再纠正。
 - 切换控件放在 Activity Bar 底部（靠 `.activity-spacer` 的 `flex: 1` 撑开，不用 `margin-top: auto`），三态循环切换，`aria-label` 说明当前态与下一态。
 - 主进程 `apps/desktop/src/main/index.ts` 的 `BrowserWindow.backgroundColor` 按 `nativeTheme.shouldUseDarkColors` 取 `--surface-1` 对应值（亮 `#ffffff` / 暗 `#1b1c1f`），避免启动白闪，并监听 `nativeTheme` 的 `updated` 同步；渲染层通过 IPC `agentdock:theme:set-source` 同步 `nativeTheme.themeSource`。
-- `WINDOW_BG` 是**全库唯一允许出现字面色值的组件外位置**，改 `--surface-1` 时要一起改。
+- `WINDOW_BG` 是本仓库源码里**唯一允许出现字面色值的组件外位置**，改 `--surface-1` 时要一起改。文件预览 Monaco 的语法色来自编辑器主题，见 §1，不写进本仓库样式。
 
 ### 2.3 暗色派生原则
 
@@ -142,7 +142,9 @@
 | `--timeline-track` | 轨道底（`.traj-lane-track`） |
 | `--timeline-focus-ring` | 聚焦色带的 canvas stroke，用高对比中性色（亮 `#111827` / 暗 `#e5e7ea`），**不用 `--accent`**，否则会和 `--role-user` 混淆 |
 
-### 3.10 会话来源圆点（`.dot[data-source]`）
+### 3.10 会话来源色（一级文件夹图标）
+
+`--source-*` 画在 WORKSPACES 一级 Source 行的文件夹图标上，不画圆点。`.ws-folder` 带 `data-source`，颜色绑到 `.ws-twist`（图标是 `stroke="currentColor"`）。二级 Workspace 行不上来源色，图标继续用 `--text-3`。
 
 | Token | 对应来源 |
 | --- | --- |
@@ -151,7 +153,7 @@
 | `--source-claude-code` | Claude Code |
 | `--source-codex` | Codex |
 
-新增来源时在此处加一条，并同步 `.dot[data-source='...']` 规则。
+新增来源时在此处加一条，并同步 `.ws-folder[data-source='...'] .ws-twist` 规则。
 
 ### 3.11 其他
 
@@ -221,7 +223,7 @@
 | Activity Bar 按钮 | 40 × 40px，圆角 `--radius-md` | `.activity-icon` 20px |
 | 侧栏 | 宽 280px，≤900px 时 220px | 折叠时列宽置 0 并 `visibility: hidden` |
 | 侧栏分组行 `.ws-folder` | `min-height: 32px` | 展开 / 收起用 16px 线框文件夹图标（关 / 开），不显示条数 |
-| 侧栏会话行 `.ws-session` | `min-height: 32px` | 选中 / 悬停底内缩 `2px 8px`，圆角 `--radius-sm`；文字缩进 40px / 嵌套 50px |
+| 侧栏会话行 `.ws-session` | `min-height: 32px` | 选中 / 悬停底内缩 `2px 8px`，圆角 `--radius-sm`；文字缩进 40px / 嵌套 50px。行包装 `.ws-session-row`，hover 出现「复制引用」 |
 | 图标按钮 `.icon-btn` | 28 × 28px | 扫描、清除这类只有图标的按钮 |
 | 行内文字按钮 `.btn-inline` | `height: 24px` | 「重试」这类跟在一行文字后面的按钮 |
 | 工具栏按钮 `.traj-tool` | `height: 28px` | |
@@ -251,7 +253,7 @@
 
 - **hover 不改变布局**：不允许在 hover 时加边框、改字号或改内边距导致行高跳动。
 - **激活指示**：会话 tab 用 `.session-tab.is-active::after` 画一条 2px 下划线（`--accent`）。Activity Bar 不画指示条，选中项用 `.activity-btn.is-active` 的 `--surface-3` 底加 `--accent` 图标。侧栏会话选中用 `.ws-session.is-active::before` 画内缩圆角块（`z-index: -1`，避免盖住标题）。
-- **行内操作图标**（`.file-actions.is-overlay`）：默认隐藏，只在行 `:hover` 或图标组自身 `:focus-within` 时出现。不要绑在整行 `:focus-within` 上，否则点开文件夹会一直挂着。不要单独铺底、加投影，图标直接叠在当前行上。
+- **行内操作图标**（`.file-actions.is-overlay`）：默认隐藏，只在行 `:hover` 或图标组自身 `:focus-within` 时出现。不要绑在整行 `:focus-within` 上，否则点开文件夹会一直挂着。用不透明合成底盖住行尾文字：所在表面实色（侧栏 `--surface-2`、内容区 `--surface-1`）叠 `--surface-hover`，选中行走 `--surface-3`。圆角 `--radius-sm`，左侧留约 6px，**不加投影**。视觉跟当前行 hover / 选中一致。
 - **切换类按钮**（Trajectory 的 `比例` / `实时` / `轮次` / `调用`）必须有 `aria-pressed` 与 `.is-on` 两态；**统计类 chip**（`时长`）是纯文本，不做成按钮。时间线默认「比例 · 按时长」+「实时 · 压缩」：色块用事件自身时长（没有就画成点），空闲从轴上压掉，不要把等待画进上一条。打开「实时」则按墙钟留空档。
 - **错误行**：只改前景色（`--danger`），不改底色，避免长列表里出现成片红块。
 
@@ -265,7 +267,7 @@
 | 长任务进度 | 行内进度条 + 已处理数量（`扫描中 1,234`），数字用 `tabular-nums`，不遮挡列表 |
 | 错误 | 统一用 `Feedback.tsx` 的 `PaneError`（`.pane-status.is-error` + `role="alert"`）显示一句可读原因，**并带 `.btn-inline` 的「重试」按钮**；模块级错误把它放在 `.module-body` 之前，面板级放在 `.session-head` 之后 |
 | 空态 | 侧栏用 `.empty-inline`（单行灰字，不要套内容区那套居中大块），内容区用 `.empty-hero` + `.empty-title` + `.empty-copy`（标题一句、说明一句，保持居中） |
-| 复制类操作 | 点击后按钮文案立即变「已复制」，**1.5s 内**复原；不弹 toast |
+| 复制类操作 | 点击后按钮文案 / tooltip 立即变「已复制」，**1.5s 内**复原；不弹 toast。会话行 hover「复制引用」（`title` + `aria-label`）同样走这条反馈；剪贴板为 Markdown：`# 标题` 空行后 `- 来源` / `- 工作区` / `- 分支` / `- 模型` / `- 会话文件`，缺省字段整行省略；点击不切换会话 |
 | 搜索 | 显示结果计数与清除按钮，命中处高亮；无结果时用空态而非空白 |
 
 ---
@@ -326,7 +328,7 @@
 | 隐藏模块 | 未激活模块用 `.is-hidden`（`display: none`）+ `aria-hidden`，保证不会被 Tab 命中 |
 | 键盘快捷键 | `Cmd/Ctrl+1..9` 切模块；`Cmd/Ctrl+F` 聚焦当前视图搜索框；`Cmd/Ctrl+B` 折叠 / 展开侧栏；`Esc` 关闭文件预览侧滑。输入框聚焦时除 `Cmd/Ctrl+F` 外全部不拦截。实现在 `workbench/shortcuts.ts`，搜索框靠 `input[data-search-input]` 定位，同一模块里有多个时取 DOM 顺序最后一个可见的（内容区优先于侧栏），新模块的搜索框必须带这个属性 |
 | tooltip | 长文本不用原生 `title`（会遮挡正文且不可控）。改用 `components/HoverTip.tsx`：延迟 300ms、portal 到 `body`、`--shadow-2` 投影、空间不够时上下翻转。长文本已切到 HoverTip（会话标题、路径、来源、工具摘要、diff 路径、Markdown 链接 URL）。短标签（图标按钮、复制按钮、Activity Bar）保留 `title` + `aria-label` |
-| 文件预览 | 对话 Markdown 里的本地路径链接（相对 / 绝对 / `file://`）点击后从内容区右侧滑出预览。先支持文本（等宽、上限 512 KB）和图片（`data:` URL，CSP 禁止 `file:`）。`http(s)` / `mailto` 仍外开。Esc 或点遮罩关闭 |
+| 文件预览 | 对话 Markdown 里的本地路径链接（相对 / 绝对 / `file://`）点击后从内容区右侧滑出预览。文本用只读 Monaco（常见扩展语法高亮，上限仍 512 KB）；图片不变（`data:` URL，CSP 禁止 `file:`）。`http(s)` / `mailto` 仍外开。Esc 或点遮罩关闭 |
 
 ---
 
@@ -430,7 +432,7 @@ export default plugin
 
 ### 12.4 合入前自查
 
-- [ ] 新样式里没有字面色值，全部走 token
+- [ ] 新样式里没有字面色值，全部走 token（文件预览 Monaco 语法色除外，见 §1）
 - [ ] 亮 / 暗两套主题各看一遍，diff、徽标、时间线没有荧光块或糊成一片
 - [ ] 五态齐全，Tab 全程焦点可见
 - [ ] 空态、加载态、错误态都能触发到

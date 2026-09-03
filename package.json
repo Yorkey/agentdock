@@ -1,6 +1,6 @@
 {
   "name": "agentdock",
-  "version": "1.0.0",
+  "version": "1.0.2",
   "private": true,
   "type": "module",
   "description": "AgentDock — 只读归集 Cursor / Claude Code / Codex 本地对话的桌面应用",

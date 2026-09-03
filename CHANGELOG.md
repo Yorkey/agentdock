@@ -2,6 +2,21 @@
 
 All notable changes to AgentDock are documented in this file.
 
+## [1.0.2] - 2026-09-03
+
+### Added
+
+- 会话行 hover「复制引用」，生成可供 agent 粘贴的 Markdown 摘要
+- 文件预览对常见源码格式做只读 Monaco 语法高亮
+
+### Changed
+
+- 侧栏一级来源去掉彩色圆点，改为文件夹图标着色，滚动时吸顶
+- 列表 hover 工具条用不透明底盖住行尾文字
+- macOS 安装包走 Developer ID 签名与公证（CI）
+
+[1.0.2]: https://github.com/Yorkey/agentdock/releases/tag/v1.0.2
+
 ## [1.0.0] - 2026-09-01
 
 ### Added
@@ -25,4 +40,4 @@ All notable changes to AgentDock are documented in this file.
 - macOS / Windows 安装包尚未代码签名
 - 无自动更新机制（后续版本计划）
 
-[1.0.0]: https://github.com/your-org/agentdock/releases/tag/v1.0.0
+[1.0.0]: https://github.com/Yorkey/agentdock/releases/tag/v1.0.0

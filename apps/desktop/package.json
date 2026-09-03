@@ -1,6 +1,6 @@
 {
   "name": "@agentdock/desktop",
-  "version": "1.0.0",
+  "version": "1.0.2",
   "private": true,
   "type": "module",
   "description": "AgentDock — 只读归集 Cursor / Claude Code / Codex 本地对话",
@@ -32,7 +32,8 @@
     "@agentdock/source-codex": "workspace:*",
     "@agentdock/source-cursor": "workspace:*",
     "@tanstack/react-virtual": "^3.14.10",
-    "cordis": "4.0.0-rc.9"
+    "cordis": "4.0.0-rc.9",
+    "monaco-editor": "^0.56.0"
   },
   "devDependencies": {
     "@types/node": "^24.3.0",

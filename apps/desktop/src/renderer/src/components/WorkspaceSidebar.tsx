@@ -2,21 +2,25 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import type { Conversation } from '@agentdock/core'
 import { searchConversations } from '../api'
-import { errorMessage, formatRelativeTime } from '../lib/format'
+import { errorMessage, formatConversationCite, formatRelativeTime } from '../lib/format'
+import { stickySourcePin } from '../lib/sticky-source'
 import {
   flattenSearchRows,
   flattenSidebarRows,
+  sourceLabelOf,
   type SidebarRow,
   type SourceNode,
   type WorkspaceNode
 } from '../lib/tree'
 import { SidebarSkeleton } from '../workbench/Feedback'
+import { copyText } from './CopyButton'
 import { FileActions } from './FileActions'
 import { useTip } from './HoverTip'
 
 const SEARCH_DEBOUNCE_MS = 200
 const SESSION_ROW_H = 32
 const FOLDER_ROW_H = 32
+const COPY_RESET_MS = 1500
 
 type SearchView =
   | { kind: 'off' }
@@ -52,6 +56,7 @@ export function WorkspaceSidebar({
   const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set())
   const [search, setSearch] = useState<SearchView>({ kind: 'off' })
   const parentRef = useRef<HTMLDivElement>(null)
+  const [scrollTop, setScrollTop] = useState(0)
   const trimmedQuery = query.trim()
 
   useEffect(() => {
@@ -96,7 +101,16 @@ export function WorkspaceSidebar({
 
   useEffect(() => {
     parentRef.current?.scrollTo({ top: 0 })
+    setScrollTop(0)
   }, [trimmedQuery])
+
+  useEffect(() => {
+    const el = parentRef.current
+    if (!el) return
+    const onScroll = () => setScrollTop(el.scrollTop)
+    el.addEventListener('scroll', onScroll, { passive: true })
+    return () => el.removeEventListener('scroll', onScroll)
+  }, [])
 
   const showSkeleton =
     (loading && conversations.length === 0 && !searching) ||
@@ -110,6 +124,23 @@ export function WorkspaceSidebar({
         : !searching && tree.length === 0
           ? '还没有索引，先扫描一次'
           : null
+
+  let pin: { source: SourceNode; key: string; translateY: number } | null = null
+  if (!searching && !showSkeleton && !emptyText) {
+    const sourceIndexes: number[] = []
+    for (let i = 0; i < rows.length; i++) {
+      if (rows[i]?.kind === 'source') sourceIndexes.push(i)
+    }
+    const offsets = sourceIndexes.map(
+      (index) => virtualizer.getOffsetForIndex(index, 'start')?.[0] ?? index * FOLDER_ROW_H
+    )
+    const state = stickySourcePin(offsets, scrollTop, FOLDER_ROW_H)
+    const rowIndex = state ? sourceIndexes[state.sourceIndex] : undefined
+    const item = rowIndex != null ? rows[rowIndex] : undefined
+    if (state && item?.kind === 'source') {
+      pin = { source: item.source, key: item.key, translateY: state.translateY }
+    }
+  }
 
   return (
     <aside className="sidebar" aria-label="工作区">
@@ -200,40 +231,59 @@ export function WorkspaceSidebar({
         <span>{searching ? '搜索结果' : 'Workspaces'}</span>
       </div>
 
-      <div
-        className="sidebar-scroll"
-        ref={parentRef}
-        aria-busy={search.kind === 'pending' || undefined}
-      >
-        {showSkeleton ? (
-          <SidebarSkeleton />
-        ) : emptyText ? (
-          <div className="empty-inline">{emptyText}</div>
-        ) : (
-          <div className="virtual-inner" style={{ height: virtualizer.getTotalSize() }}>
-            {virtualizer.getVirtualItems().map((row) => {
-              const item = rows[row.index]
-              if (!item) return null
-              return (
-                <div
-                  key={item.key}
-                  data-index={row.index}
-                  ref={virtualizer.measureElement}
-                  className="sidebar-virtual-row"
-                  style={{ transform: `translateY(${row.start}px)` }}
-                >
-                  <SidebarItem
-                    item={item}
-                    selectedId={selectedId}
-                    collapsed={collapsed}
-                    onToggle={(key) => setCollapsed((prev) => toggle(prev, key))}
-                    onSelect={onSelect}
-                  />
-                </div>
-              )
-            })}
+      <div className="sidebar-scroll-host">
+        <div
+          className="sidebar-scroll"
+          ref={parentRef}
+          aria-busy={search.kind === 'pending' || undefined}
+        >
+          {showSkeleton ? (
+            <SidebarSkeleton />
+          ) : emptyText ? (
+            <div className="empty-inline">{emptyText}</div>
+          ) : (
+            <div className="virtual-inner" style={{ height: virtualizer.getTotalSize() }}>
+              {virtualizer.getVirtualItems().map((row) => {
+                const item = rows[row.index]
+                if (!item) return null
+                return (
+                  <div
+                    key={item.key}
+                    data-index={row.index}
+                    ref={virtualizer.measureElement}
+                    className="sidebar-virtual-row"
+                    style={{ transform: `translateY(${row.start}px)` }}
+                  >
+                    <SidebarItem
+                      item={item}
+                      sources={tree}
+                      selectedId={selectedId}
+                      collapsed={collapsed}
+                      onToggle={(key) => setCollapsed((prev) => toggle(prev, key))}
+                      onSelect={onSelect}
+                    />
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
+        {pin ? (
+          <div
+            className="sidebar-source-pin"
+            style={{ transform: `translateY(${pin.translateY}px)` }}
+            onWheel={(event) => {
+              parentRef.current?.scrollBy({ top: event.deltaY })
+            }}
+          >
+            <SourceRow
+              source={pin.source}
+              rowKey={pin.key}
+              collapsed={collapsed.has(pin.key)}
+              onToggle={(key) => setCollapsed((prev) => toggle(prev, key))}
+            />
           </div>
-        )}
+        ) : null}
       </div>
     </aside>
   )
@@ -241,12 +291,14 @@ export function WorkspaceSidebar({
 
 function SidebarItem({
   item,
+  sources,
   selectedId,
   collapsed,
   onToggle,
   onSelect
 }: {
   item: SidebarRow
+  sources: SourceNode[]
   selectedId: string | null
   collapsed: ReadonlySet<string>
   onToggle: (key: string) => void
@@ -275,6 +327,7 @@ function SidebarItem({
       return (
         <SessionRow
           conversation={item.conversation}
+          sourceLabel={sourceLabelOf(sources, item.conversation.sourceId)}
           active={item.conversation.id === selectedId}
           nested={item.nested}
           onSelect={onSelect}
@@ -302,13 +355,13 @@ function SourceRow({
     <button
       type="button"
       className="ws-folder"
+      data-source={source.id}
       aria-expanded={!collapsed}
       onClick={() => onToggle(rowKey)}
     >
       <span className="ws-twist" aria-hidden="true">
         <FolderGlyph open={!collapsed} />
       </span>
-      <span className="dot" data-source={source.id} />
       <span className="ws-label">{source.label}</span>
     </button>
   )
@@ -349,28 +402,105 @@ function WorkspaceRow({
 
 function SessionRow({
   conversation,
+  sourceLabel,
   active,
   nested,
   onSelect
 }: {
   conversation: Conversation
+  sourceLabel: string
   active: boolean
   nested?: boolean
   onSelect: (id: string) => void
 }) {
   const tip = useTip()
   return (
-    <button
-      type="button"
-      className={`ws-session${active ? ' is-active' : ''}${nested ? ' is-nested' : ''}`}
-      aria-current={active ? 'true' : undefined}
-      onClick={() => onSelect(conversation.id)}
-    >
-      <span className="ws-session-title" {...tip(conversation.title)}>
-        {conversation.title || '未命名会话'}
-      </span>
-      <span className="ws-session-time">{formatRelativeTime(conversation.updatedAt)}</span>
-    </button>
+    <div className={`ws-session-row${active ? ' is-active' : ''}`}>
+      <button
+        type="button"
+        className={`ws-session${active ? ' is-active' : ''}${nested ? ' is-nested' : ''}`}
+        aria-current={active ? 'true' : undefined}
+        onClick={() => onSelect(conversation.id)}
+      >
+        <span className="ws-session-title" {...tip(conversation.title)}>
+          {conversation.title || '未命名会话'}
+        </span>
+        <span className="ws-session-time">{formatRelativeTime(conversation.updatedAt)}</span>
+      </button>
+      <SessionCite conversation={conversation} sourceLabel={sourceLabel} />
+    </div>
+  )
+}
+
+function SessionCite({
+  conversation,
+  sourceLabel
+}: {
+  conversation: Conversation
+  sourceLabel: string
+}) {
+  const [copyState, setCopyState] = useState<'idle' | 'done' | 'fail'>('idle')
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  useEffect(() => {
+    return () => {
+      if (timer.current) clearTimeout(timer.current)
+    }
+  }, [])
+
+  const copyTitle = copyState === 'done' ? '已复制' : copyState === 'fail' ? '复制失败' : '复制引用'
+  return (
+    <span className="file-actions is-overlay" onClick={stop} onPointerDown={stop}>
+      <button
+        type="button"
+        className="icon-btn"
+        data-state={copyState}
+        aria-label={copyTitle}
+        title={copyTitle}
+        onClick={() => {
+          void copyText(formatConversationCite(conversation, sourceLabel)).then((ok) => {
+            if (timer.current) clearTimeout(timer.current)
+            setCopyState(ok ? 'done' : 'fail')
+            timer.current = setTimeout(() => setCopyState('idle'), COPY_RESET_MS)
+          })
+        }}
+      >
+        {copyState === 'idle' ? <CiteIcon /> : <CheckIcon />}
+      </button>
+    </span>
+  )
+}
+
+function stop(event: { stopPropagation: () => void }): void {
+  event.stopPropagation()
+}
+
+function CiteIcon() {
+  return (
+    <svg className="icon-16" viewBox="0 0 16 16" aria-hidden="true">
+      <path
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.2"
+        strokeLinejoin="round"
+        d="M2.5 4.5h5v5.2H5.2C4 12 3 13 2.5 14.2V4.5Zm6 0h5v5.2h-2.3C10 12 9 13 8.5 14.2V4.5Z"
+      />
+    </svg>
+  )
+}
+
+function CheckIcon() {
+  return (
+    <svg className="icon-16" viewBox="0 0 16 16" aria-hidden="true">
+      <path
+        d="M3.5 8.5l3 3 6-7"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
   )
 }
 
