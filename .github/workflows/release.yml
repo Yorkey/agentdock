@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Git tag to upload to (e.g. v1.0.2)'
+        description: 'Git tag to upload to (e.g. v1.1.0)'
         required: true
         default: 'v1.0.0'
       platforms:
@@ -21,8 +21,49 @@ permissions:
   contents: write
 
 jobs:
+  prepare-release:
+    if: startsWith(inputs.tag, 'v')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Ensure GitHub Release exists
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ inputs.tag }}
+        run: |
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG already exists"
+            exit 0
+          fi
+          NOTES_FILE="$(mktemp)"
+          if [ -f CHANGELOG.md ]; then
+            # 取 CHANGELOG 中该版本小节（到下一个 ## 之前）
+            VERSION="${TAG#v}"
+            awk -v ver="$VERSION" '
+              $0 ~ "^## \\[" ver "\\]" {p=1; next}
+              p && /^## \[/ {exit}
+              p {print}
+            ' CHANGELOG.md > "$NOTES_FILE"
+          fi
+          if [ ! -s "$NOTES_FILE" ]; then
+            echo "AgentDock ${TAG#v}" > "$NOTES_FILE"
+          fi
+          gh release create "$TAG" \
+            --title "AgentDock ${TAG#v}" \
+            --notes-file "$NOTES_FILE" \
+            --verify-tag
+          echo "Created release $TAG"
+
   build-mac:
-    if: inputs.platforms == 'all' || inputs.platforms == 'mac'
+    needs: prepare-release
+    if: |
+      always() &&
+      (needs.prepare-release.result == 'success' || needs.prepare-release.result == 'skipped') &&
+      (inputs.platforms == 'all' || inputs.platforms == 'mac')
     runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
@@ -100,7 +141,11 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   build-win:
-    if: inputs.platforms == 'all' || inputs.platforms == 'win'
+    needs: prepare-release
+    if: |
+      always() &&
+      (needs.prepare-release.result == 'success' || needs.prepare-release.result == 'skipped') &&
+      (inputs.platforms == 'all' || inputs.platforms == 'win')
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
