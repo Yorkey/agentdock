@@ -20,6 +20,7 @@
   },
   "dependencies": {
     "@agentdock/core": "workspace:*",
+    "@agentdock/module-skills": "workspace:*",
     "@agentdock/plugin-registry": "workspace:*",
     "@agentdock/plugin-store": "workspace:*",
     "@agentdock/plugin-workbench": "workspace:*",

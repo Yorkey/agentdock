@@ -85,9 +85,28 @@ button {
   animation: spin 1s linear infinite;
 }
 
+.icon-10 {
+  width: 10px;
+  height: 10px;
+  flex-shrink: 0;
+}
+
+.icon-12 {
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
+}
+
+.icon-14 {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+
 .icon-16 {
   width: 16px;
   height: 16px;
+  flex-shrink: 0;
 }
 
 @keyframes spin {

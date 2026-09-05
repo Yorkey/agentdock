@@ -1,11 +1,19 @@
 import { homedir } from 'node:os'
 import { readFile, realpath } from 'node:fs/promises'
-import { BrowserWindow, ipcMain, nativeTheme, type IpcMainInvokeEvent } from 'electron'
+import { BrowserWindow, dialog, ipcMain, nativeTheme, type IpcMainInvokeEvent } from 'electron'
 import { Service, type Context } from 'cordis'
 import type {} from '@agentdock/plugin-store'
 import type { ScanDone, ScanProgress, SourceInfo } from '@agentdock/plugin-registry/types'
 import type {} from '@agentdock/plugin-registry'
 import type {} from '@agentdock/plugin-workbench'
+import type {} from '@agentdock/module-skills'
+import type {
+  ImportLocalSkillArgs,
+  InstallFromGitHubArgs,
+  InstallToAgentsArgs,
+  SaveOverrideFileArgs,
+  UninstallSkillArgs
+} from '@agentdock/core'
 import { IPC, type ListConversationsArgs, type ThemeSource } from './ipc.ts'
 import { readWhitelistedPlanFile } from './plan-file.ts'
 import { readPreviewFile } from './preview-file.ts'
@@ -31,7 +39,7 @@ function broadcast(channel: string, payload: unknown): void {
 export class BridgeService extends Service {
   static provide = 'bridge'
   static name = 'bridge'
-  static inject = ['store', 'sources', 'workbench']
+  static inject = ['store', 'sources', 'workbench', 'skills']
 
   constructor(ctx: Context) {
     super(ctx, 'bridge')
@@ -115,6 +123,142 @@ export class BridgeService extends Service {
         return readPreviewFile(filePath, workspace)
       })
 
+      // Skill 管理 IPC 处理函数
+      handle(IPC.listSkills, async (_event, agentId) => {
+        return this.ctx.skills.listSkills(typeof agentId === 'string' ? agentId : undefined)
+      })
+
+      handle(IPC.listAggregatedSkills, async () => {
+        return this.ctx.skills.listAggregatedSkills()
+      })
+
+      handle(IPC.listSkillAgents, async () => {
+        return this.ctx.skills.listAdapters()
+      })
+
+      handle(IPC.getSkillDetail, async (_event, skillName, agentId) => {
+        if (typeof skillName !== 'string' || typeof agentId !== 'string') {
+          throw new Error('skillName and agentId must be strings')
+        }
+        return this.ctx.skills.getSkillDetail(skillName, agentId)
+      })
+
+      handle(IPC.installSkillToAgents, async (_event, rawArgs) => {
+        const args = rawArgs as InstallToAgentsArgs
+        return this.ctx.skills.installSkillToAgents(args)
+      })
+
+      handle(IPC.previewGitHubSkill, async (_event, url) => {
+        if (typeof url !== 'string') {
+          throw new Error('url must be a string')
+        }
+        return this.ctx.skills.previewGitHubSkill(url)
+      })
+
+      handle(IPC.installSkillFromGitHub, async (_event, rawArgs) => {
+        const args = rawArgs as InstallFromGitHubArgs
+        return this.ctx.skills.installSkillFromGitHub(args)
+      })
+
+      // 本地技能/ZIP导入相关处理
+      handle(IPC.selectSkillFolder, async () => {
+        const win = BrowserWindow.getFocusedWindow() || BrowserWindow.getAllWindows()[0]
+        const options = {
+          title: '选择本地 Skill 技能文件夹',
+          properties: ['openDirectory', 'createDirectory'] as Array<'openDirectory' | 'createDirectory'>
+        }
+        const result = win
+          ? await dialog.showOpenDialog(win, options)
+          : await dialog.showOpenDialog(options)
+        return result.canceled || result.filePaths.length === 0 ? null : result.filePaths[0]
+      })
+
+      handle(IPC.selectSkillZip, async () => {
+        const win = BrowserWindow.getFocusedWindow() || BrowserWindow.getAllWindows()[0]
+        const options = {
+          title: '选择本地 Skill ZIP 压缩包',
+          properties: ['openFile'] as Array<'openFile'>,
+          filters: [{ name: 'ZIP 压缩包', extensions: ['zip'] }]
+        }
+        const result = win
+          ? await dialog.showOpenDialog(win, options)
+          : await dialog.showOpenDialog(options)
+        return result.canceled || result.filePaths.length === 0 ? null : result.filePaths[0]
+      })
+
+      handle(IPC.previewLocalSkill, async (_event, sourcePath) => {
+        if (typeof sourcePath !== 'string') {
+          throw new Error('sourcePath must be a string')
+        }
+        return this.ctx.skills.previewLocalSkill(sourcePath)
+      })
+
+      handle(IPC.installLocalSkill, async (_event, rawArgs) => {
+        const args = rawArgs as ImportLocalSkillArgs
+        return this.ctx.skills.installLocalSkill(args)
+      })
+
+      handle(IPC.uninstallSkill, async (_event, rawArgs) => {
+        const args = rawArgs as UninstallSkillArgs
+        return this.ctx.skills.uninstallSkill(args)
+      })
+
+      // Skill 调试覆写相关处理
+      handle(IPC.listSkillOverrides, async () => {
+        return this.ctx.skills.listOverrides()
+      })
+
+      handle(IPC.enableSkillOverride, async (_event, agentId, skillId) => {
+        if (typeof agentId !== 'string' || typeof skillId !== 'string') {
+          throw new Error('agentId and skillId must be strings')
+        }
+        return this.ctx.skills.enableOverride(agentId, skillId)
+      })
+
+      handle(IPC.getSkillOverrideStatus, async (_event, agentId, skillId) => {
+        if (typeof agentId !== 'string' || typeof skillId !== 'string') {
+          throw new Error('agentId and skillId must be strings')
+        }
+        return this.ctx.skills.getOverrideStatus(agentId, skillId)
+      })
+
+      handle(IPC.readSkillFile, async (_event, agentId, skillId, relativePath) => {
+        if (typeof agentId !== 'string' || typeof skillId !== 'string' || typeof relativePath !== 'string') {
+          throw new Error('agentId, skillId, and relativePath must be strings')
+        }
+        return this.ctx.skills.readSkillFile(agentId, skillId, relativePath)
+      })
+
+      handle(IPC.saveSkillOverrideFile, async (_event, rawArgs) => {
+        const args = rawArgs as SaveOverrideFileArgs
+        return this.ctx.skills.saveOverrideFile(args)
+      })
+
+      handle(IPC.getSkillOverrideDiff, async (_event, agentId, skillId, relativePath) => {
+        if (typeof agentId !== 'string' || typeof skillId !== 'string') {
+          throw new Error('agentId and skillId must be strings')
+        }
+        return this.ctx.skills.getOverrideDiff(
+          agentId,
+          skillId,
+          typeof relativePath === 'string' ? relativePath : 'SKILL.md'
+        )
+      })
+
+      handle(IPC.revertSkillOverride, async (_event, agentId, skillId) => {
+        if (typeof agentId !== 'string' || typeof skillId !== 'string') {
+          throw new Error('agentId and skillId must be strings')
+        }
+        return this.ctx.skills.revertOverride(agentId, skillId)
+      })
+
+      handle(IPC.commitSkillOverride, async (_event, agentId, skillId) => {
+        if (typeof agentId !== 'string' || typeof skillId !== 'string') {
+          throw new Error('agentId and skillId must be strings')
+        }
+        return this.ctx.skills.commitOverride(agentId, skillId)
+      })
+
       return () => {
         ipcMain.removeHandler(IPC.listConversations)
         ipcMain.removeHandler(IPC.getMessages)
@@ -126,6 +270,22 @@ export class BridgeService extends Service {
         ipcMain.removeHandler(IPC.readPlanFile)
         ipcMain.removeHandler(IPC.revealInFolder)
         ipcMain.removeHandler(IPC.readPreviewFile)
+        ipcMain.removeHandler(IPC.listSkills)
+        ipcMain.removeHandler(IPC.listAggregatedSkills)
+        ipcMain.removeHandler(IPC.listSkillAgents)
+        ipcMain.removeHandler(IPC.getSkillDetail)
+        ipcMain.removeHandler(IPC.installSkillToAgents)
+        ipcMain.removeHandler(IPC.previewGitHubSkill)
+        ipcMain.removeHandler(IPC.installSkillFromGitHub)
+        ipcMain.removeHandler(IPC.uninstallSkill)
+        ipcMain.removeHandler(IPC.listSkillOverrides)
+        ipcMain.removeHandler(IPC.enableSkillOverride)
+        ipcMain.removeHandler(IPC.getSkillOverrideStatus)
+        ipcMain.removeHandler(IPC.readSkillFile)
+        ipcMain.removeHandler(IPC.saveSkillOverrideFile)
+        ipcMain.removeHandler(IPC.getSkillOverrideDiff)
+        ipcMain.removeHandler(IPC.revertSkillOverride)
+        ipcMain.removeHandler(IPC.commitSkillOverride)
       }
     })
   }

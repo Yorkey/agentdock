@@ -136,3 +136,6 @@ app.on('window-all-closed', () => {
     app.quit()
   }
 })
+
+// Trigger electron-vite main reload for skills override service
+

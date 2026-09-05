@@ -1,6 +1,6 @@
 {
   "name": "@agentdock/desktop",
-  "version": "1.0.2",
+  "version": "1.1.0",
   "private": true,
   "type": "module",
   "description": "AgentDock — 只读归集 Cursor / Claude Code / Codex 本地对话",
@@ -15,7 +15,7 @@
     "typecheck:web": "tsc --noEmit -p tsconfig.web.json --composite false",
     "typecheck": "pnpm typecheck:node && pnpm typecheck:web",
     "dry-scan": "node --experimental-strip-types ./scripts/dry-scan.ts",
-    "verify": "node --experimental-strip-types ./scripts/verify-dialogue.ts && node --experimental-strip-types ./scripts/verify-markdown.ts && node --experimental-strip-types ./scripts/verify-tree.ts && node --experimental-strip-types ./scripts/verify-trajectory.ts && node --experimental-strip-types ./scripts/verify-changes.ts && node --experimental-strip-types ./scripts/verify-plans.ts && node --experimental-strip-types ./scripts/verify-message-cache.ts && node --experimental-strip-types ./scripts/verify-paths.ts",
+    "verify": "node --experimental-strip-types ./scripts/verify-dialogue.ts && node --experimental-strip-types ./scripts/verify-markdown.ts && node --experimental-strip-types ./scripts/verify-tree.ts && node --experimental-strip-types ./scripts/verify-trajectory.ts && node --experimental-strip-types ./scripts/verify-changes.ts && node --experimental-strip-types ./scripts/verify-plans.ts && node --experimental-strip-types ./scripts/verify-message-cache.ts && node --experimental-strip-types ./scripts/verify-paths.ts && node --experimental-strip-types ./scripts/verify-skills.ts",
     "dist": "electron-vite build && electron-builder",
     "dist:mac": "electron-vite build && electron-builder --mac",
     "dist:win": "electron-vite build && electron-builder --win"

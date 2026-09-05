@@ -1,16 +1,50 @@
-import type { Conversation, Message, WorkbenchContribution } from '@agentdock/core'
+import type {
+  AggregatedSkill,
+  Conversation,
+  GitHubSkillPreview,
+  InstallFromGitHubArgs,
+  ImportLocalSkillArgs,
+  InstalledSkill,
+  InstallToAgentsArgs,
+  LocalSkillPreview,
+  Message,
+  SaveOverrideFileArgs,
+  SkillAgentInfo,
+  SkillFileDiff,
+  SkillFileEntry,
+  SkillOperationResult,
+  SkillOverrideEntry,
+  SkillOverrideStatus,
+  UninstallSkillArgs,
+  WorkbenchContribution
+} from '@agentdock/core'
 import type { DesktopApi, FilePreviewResult, ListConversationsArgs, ThemeSource } from '@agentdock/plugin-bridge/ipc'
 import type { ScanDone, ScanProgress, SourceInfo } from '@agentdock/plugin-registry/types'
 
 export type {
+  AggregatedSkill,
   Conversation,
+  FilePreviewResult,
+  GitHubSkillPreview,
+  InstallFromGitHubArgs,
+  ImportLocalSkillArgs,
+  InstalledSkill,
+  InstallToAgentsArgs,
+  LocalSkillPreview,
   Message,
+  SaveOverrideFileArgs,
   ScanDone,
   ScanProgress,
+  SkillAgentInfo,
+  SkillFileDiff,
+  SkillFileEntry,
+  SkillOperationResult,
+  SkillOverrideEntry,
+  SkillOverrideStatus,
   SourceInfo,
   ThemeSource,
-  WorkbenchContribution,
-  FilePreviewResult
+  UninstallSkillArgs,
+  WorkbenchContribution
 }
 
 export function getApi(): DesktopApi {
@@ -106,3 +140,114 @@ export function setThemeSource(source: ThemeSource): void {
     // 主题同步失败不影响渲染层已生效的 data-theme
   })
 }
+
+// ======================= Skills 相关 API =======================
+
+export function listSkills(agentId?: string): Promise<InstalledSkill[]> {
+  return getApi().listSkills(agentId)
+}
+
+export function listAggregatedSkills(): Promise<AggregatedSkill[]> {
+  return getApi().listAggregatedSkills()
+}
+
+export function listSkillAgents(): Promise<SkillAgentInfo[]> {
+  return getApi().listSkillAgents()
+}
+
+export function getSkillDetail(
+  skillName: string,
+  agentId: string
+): Promise<{ skill: InstalledSkill; files: SkillFileEntry[]; overrideStatus: SkillOverrideStatus } | null> {
+  return getApi().getSkillDetail(skillName, agentId)
+}
+
+export function installSkillToAgents(args: InstallToAgentsArgs): Promise<SkillOperationResult[]> {
+  return getApi().installSkillToAgents(args)
+}
+
+export function previewGitHubSkill(url: string): Promise<GitHubSkillPreview> {
+  return getApi().previewGitHubSkill(url)
+}
+
+export function installSkillFromGitHub(args: InstallFromGitHubArgs): Promise<SkillOperationResult[]> {
+  return getApi().installSkillFromGitHub(args)
+}
+
+export function selectSkillFolder(): Promise<string | null> {
+  return getApi().selectSkillFolder()
+}
+
+export function selectSkillZip(): Promise<string | null> {
+  return getApi().selectSkillZip()
+}
+
+export function previewLocalSkill(sourcePath: string): Promise<LocalSkillPreview> {
+  return getApi().previewLocalSkill(sourcePath)
+}
+
+export function installLocalSkill(args: ImportLocalSkillArgs): Promise<SkillOperationResult[]> {
+  return getApi().installLocalSkill(args)
+}
+
+export function uninstallSkill(args: UninstallSkillArgs): Promise<SkillOperationResult[]> {
+  return getApi().uninstallSkill(args)
+}
+
+export function listSkillOverrides(): Promise<SkillOverrideEntry[]> {
+  const api = getApi()
+  if (typeof api.listSkillOverrides !== 'function') {
+    return Promise.resolve([])
+  }
+  return api.listSkillOverrides()
+}
+
+export function enableSkillOverride(agentId: string, skillId: string): Promise<SkillOverrideStatus> {
+  return getApi().enableSkillOverride(agentId, skillId)
+}
+
+export function getSkillOverrideStatus(agentId: string, skillId: string): Promise<SkillOverrideStatus> {
+  return getApi().getSkillOverrideStatus(agentId, skillId)
+}
+
+export function readSkillFile(agentId: string, skillId: string, relativePath: string): Promise<string> {
+  return getApi().readSkillFile(agentId, skillId, relativePath)
+}
+
+export function saveSkillOverrideFile(args: SaveOverrideFileArgs): Promise<void> {
+  return getApi().saveSkillOverrideFile(args)
+}
+
+export function getSkillOverrideDiff(
+  agentId: string,
+  skillId: string,
+  relativePath?: string
+): Promise<SkillFileDiff> {
+  return getApi().getSkillOverrideDiff(agentId, skillId, relativePath)
+}
+
+export function revertSkillOverride(agentId: string, skillId: string): Promise<void> {
+  return getApi().revertSkillOverride(agentId, skillId)
+}
+
+export function commitSkillOverride(agentId: string, skillId: string): Promise<void> {
+  return getApi().commitSkillOverride(agentId, skillId)
+}
+
+/**
+ * 获取拖拽到窗口中的本地文件/目录的真实绝对路径
+ * 兼容 Electron webUtils.getPathForFile 及降级方案
+ */
+export function getPathForFile(file: File): string {
+  const api = window.api
+  if (typeof api?.getPathForFile === 'function') {
+    try {
+      const p = api.getPathForFile(file)
+      if (p && typeof p === 'string') return p
+    } catch {
+      // 忽略调用异常，降级到 file.path
+    }
+  }
+  return (file as File & { path?: string }).path || ''
+}
+

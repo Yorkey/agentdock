@@ -2,6 +2,31 @@
 
 All notable changes to AgentDock are documented in this file.
 
+## [1.1.0] - 2026-09-05
+
+### Added
+
+- **Skill 管理工作台**：
+  - 支持列出当前所有本地 Skill，提供「按 Agent 分组」与「平铺视图（Agent 作为彩色标签）」双浏览模式
+  - 支持将已有 Skill 一键复制安装到其他 Agent（含同名覆盖检测与保护）
+  - 支持通过 GitHub 目录链接直接解析并安装 Skill（免全量克隆，弹窗预览 SKILL.md 文档与文件清单，多选目标 Agent）
+  - 支持删除 Skill，可指定从单个或多个 Agent 中安全移除
+  - 详情面板内置 SKILL.md 文档 Markdown 渲染与目录文件清单
+- **本地技能导入（文件夹与 ZIP）**：
+  - 支持将本地技能文件夹或 `.zip` 拖入 / 通过系统对话框导入
+  - 纯 Node.js 解包：去除顶层包装目录，过滤 `__MACOSX/` / `.DS_Store`，内置 Zip Slip 防御
+  - 导入前解析 Frontmatter 预览技能名、描述、作者、版本与体积
+  - 支持自定义 Skill ID、多目标 Agent 安装及同名覆盖控制
+- **技能本地调试与源码覆写**：
+  - 应用内编辑 `SKILL.md` 及辅助脚本，修改即时覆写到对应 Agent
+  - 隔离备份（`~/.agentdock/overrides`），支持还原（Revert）与固化（Commit）
+  - Monaco 编辑器与 Side-by-Side / Inline Diff
+- **插件化架构扩展**：
+  - Cordis `SkillRegistry` 与 `SkillAgentAdapter`，内置 Claude Code / Cursor / Codex 适配器
+  - 解析 Agent Skill YAML Frontmatter，并支持通用/公共目录扫描
+
+[1.1.0]: https://github.com/Yorkey/agentdock/releases/tag/v1.1.0
+
 ## [1.0.2] - 2026-09-03
 
 ### Added

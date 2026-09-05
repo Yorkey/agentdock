@@ -126,3 +126,16 @@ export function formatConversationCite(
   if (items.length === 0) return `# ${title}`
   return [`# ${title}`, '', ...items].join('\n')
 }
+
+export function formatFileSize(bytes: number): string {
+  if (!Number.isFinite(bytes) || bytes <= 0) return '0 B'
+  const units = ['B', 'KB', 'MB', 'GB']
+  let i = 0
+  let val = bytes
+  while (val >= 1024 && i < units.length - 1) {
+    val /= 1024
+    i++
+  }
+  return `${i === 0 ? val : val.toFixed(1)} ${units[i]}`
+}
+

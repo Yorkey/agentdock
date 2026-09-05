@@ -65,7 +65,7 @@ const LANGUAGE_BY_EXT: Record<string, string> = {
   cs: 'csharp'
 }
 
-function languageFromFile(path: string, name: string): string {
+export function languageFromFile(path: string, name: string): string {
   const file = (name.trim() || fileName(path)).toLowerCase()
   const dot = file.lastIndexOf('.')
   if (dot <= 0 || dot === file.length - 1) return 'plaintext'
@@ -144,3 +144,153 @@ export function mountPreviewEditor(
     model?.dispose()
   }
 }
+
+export function mountCodeEditor(
+  host: HTMLElement,
+  options: {
+    value: string
+    path: string
+    name?: string
+    readOnly?: boolean
+    wordWrap?: 'on' | 'off'
+    onChange?: (value: string) => void
+    onSave?: () => void
+  }
+): {
+  dispose: () => void
+  setValue: (value: string) => void
+  getValue: () => string
+  focus: () => void
+} {
+  applyPreviewTheme()
+  const editor = monaco.editor.create(host, {
+    value: options.value,
+    language: languageFromFile(options.path, options.name ?? ''),
+    readOnly: options.readOnly ?? false,
+    minimap: { enabled: false },
+    contextmenu: true,
+    scrollBeyondLastLine: false,
+    lineNumbers: 'on',
+    wordWrap: options.wordWrap ?? 'on',
+    fontSize: 13,
+    fontFamily: 'var(--font-mono)',
+    automaticLayout: true,
+    tabSize: 2,
+    theme: isDarkAppearance() ? DARK : LIGHT
+  })
+
+  const syncTheme = (): void => applyPreviewTheme()
+  const mo = new MutationObserver(syncTheme)
+  mo.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] })
+  const mq = matchMedia('(prefers-color-scheme: dark)')
+  mq.addEventListener('change', syncTheme)
+
+  const sub = editor.onDidChangeModelContent(() => {
+    options.onChange?.(editor.getValue())
+  })
+
+  if (options.onSave) {
+    editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
+      options.onSave?.()
+    })
+  }
+
+  return {
+    dispose: () => {
+      mo.disconnect()
+      mq.removeEventListener('change', syncTheme)
+      sub.dispose()
+      const model = editor.getModel()
+      editor.dispose()
+      model?.dispose()
+    },
+    setValue: (val: string) => {
+      if (editor.getValue() !== val) {
+        editor.setValue(val)
+      }
+    },
+    getValue: () => editor.getValue(),
+    focus: () => editor.focus()
+  }
+}
+
+export function mountDiffEditor(
+  host: HTMLElement,
+  options: {
+    original: string
+    modified: string
+    path: string
+    name?: string
+    readOnly?: boolean
+    renderSideBySide?: boolean
+    onChange?: (value: string) => void
+    onSave?: () => void
+  }
+): {
+  dispose: () => void
+  setOriginal: (value: string) => void
+  setModified: (value: string) => void
+  getValue: () => string
+} {
+  applyPreviewTheme()
+  const diffEditor = monaco.editor.createDiffEditor(host, {
+    renderSideBySide: options.renderSideBySide ?? true,
+    readOnly: options.readOnly ?? false,
+    minimap: { enabled: false },
+    scrollBeyondLastLine: false,
+    lineNumbers: 'on',
+    wordWrap: 'on',
+    fontSize: 13,
+    fontFamily: 'var(--font-mono)',
+    automaticLayout: true,
+    theme: isDarkAppearance() ? DARK : LIGHT
+  })
+
+  const lang = languageFromFile(options.path, options.name ?? '')
+  const originalModel = monaco.editor.createModel(options.original, lang)
+  const modifiedModel = monaco.editor.createModel(options.modified, lang)
+
+  diffEditor.setModel({
+    original: originalModel,
+    modified: modifiedModel
+  })
+
+  const syncTheme = (): void => applyPreviewTheme()
+  const mo = new MutationObserver(syncTheme)
+  mo.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] })
+  const mq = matchMedia('(prefers-color-scheme: dark)')
+  mq.addEventListener('change', syncTheme)
+
+  const sub = modifiedModel.onDidChangeContent(() => {
+    options.onChange?.(modifiedModel.getValue())
+  })
+
+  if (options.onSave) {
+    diffEditor.getModifiedEditor().addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
+      options.onSave?.()
+    })
+  }
+
+  return {
+    dispose: () => {
+      mo.disconnect()
+      mq.removeEventListener('change', syncTheme)
+      sub.dispose()
+      diffEditor.dispose()
+      originalModel.dispose()
+      modifiedModel.dispose()
+    },
+    setOriginal: (value: string) => {
+      if (originalModel.getValue() !== value) {
+        originalModel.setValue(value)
+      }
+    },
+    setModified: (value: string) => {
+      if (modifiedModel.getValue() !== value) {
+        modifiedModel.setValue(value)
+      }
+    },
+    getValue: () => modifiedModel.getValue()
+  }
+}
+
