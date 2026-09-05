@@ -108,6 +108,9 @@ importers:
 
   packages/module-skills:
     dependencies:
+      '@agentdock/core':
+        specifier: workspace:*
+        version: link:../core
       '@agentdock/plugin-workbench':
         specifier: workspace:*
         version: link:../plugin-workbench
@@ -127,6 +130,9 @@ importers:
       '@agentdock/core':
         specifier: workspace:*
         version: link:../core
+      '@agentdock/module-skills':
+        specifier: workspace:*
+        version: link:../module-skills
       '@agentdock/plugin-registry':
         specifier: workspace:*
         version: link:../plugin-registry
